@@ -1,0 +1,130 @@
+name: Build APK
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Stable version such as 1.0; leave empty to increment"
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+env:
+  APP: ChargeWatt
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.6.0
+      - name: Install Android SDK 37
+        run: |
+          set -euo pipefail
+          yes | "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
+      - name: Resolve version and filename
+        env:
+          REQUESTED: "${{ inputs.version }}"
+        run: |
+          set -euo pipefail
+          last=$(git tag -l 'v[0-9]*' | sed -nE 's/^v([0-9]+[.][0-9])$/\1/p' | sort -V | tail -1 || true)
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            version="${last:-1.0}"
+            suffix="-experimental.$GITHUB_RUN_NUMBER"
+            apk="$APP-PR-${{ github.event.pull_request.number }}-${GITHUB_SHA:0:7}"
+          else
+            if [ -n "$REQUESTED" ]; then version="$REQUESTED"
+            elif [ -z "$last" ]; then version="1.0"
+            else
+              n=$(( ${last%.*} * 10 + ${last#*.} + 1 ))
+              version="$((n / 10)).$((n % 10))"
+            fi
+            suffix=""
+            apk="$APP-$version"
+            if [ -n "$last" ] && [ "$(printf '%s\n%s\n' "$last" "$version" | sort -V | tail -1)" = "$last" ]; then
+              echo "::error::Stable version must advance beyond $last"; exit 1
+            fi
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]$ ]] || { echo "::error::Bad version $version"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "SUFFIX=$suffix" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "APK_NAME=$apk" >> "$GITHUB_ENV"
+      - name: Test, lint, build
+        env:
+          N2K02_PACKAGES_TOKEN: "${{ secrets.N2K02_PACKAGES_TOKEN }}"
+        run: |
+          set -euo pipefail
+          gradle --no-daemon testDebugUnitTest lintDebug assembleRelease \
+            -PappVersion="$VERSION" -PappVersionCode="$VERSION_CODE" -PappVersionSuffix="$SUFFIX"
+      - name: Sign stable and experimental with the same key
+        env:
+          SIGNING_PASSPHRASE: "${{ secrets.SIGNING_PASSPHRASE }}"
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_PASSPHRASE" || { echo "::error::Missing SIGNING_PASSPHRASE"; exit 1; }
+          K="$RUNNER_TEMP/keys"
+          mkdir -p "$K"; chmod 700 "$K"
+          ENC="$RUNNER_TEMP/keys.tar.enc"
+          curl --fail --location --silent --show-error --retry 3 --output "$ENC" \
+            "https://raw.githubusercontent.com/N2K02/MRadio/main/signing/keys.tar.enc"
+          test "$(git hash-object "$ENC")" = "5203c1095062ad22099f76d319605ae5b79c0720" || {
+            echo "::error::Signing bundle checksum mismatch"; exit 1;
+          }
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in "$ENC" \
+            -pass env:SIGNING_PASSPHRASE | tar -xf - -C "$K"
+          rm -f "$ENC"
+          BT=$(ls -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"/build-tools/* | sort -V | tail -1)
+          export RP=$(cat "$K/release.pass") OP=android
+          "$BT/apksigner" rotate --out "$K/lineage" \
+            --old-signer --ks "$K/old.keystore" --ks-pass env:OP --ks-key-alias androiddebugkey --key-pass env:OP \
+            --new-signer --ks "$K/release.p12" --ks-pass env:RP --ks-key-alias release --key-pass env:RP
+          "$BT/apksigner" sign \
+            --ks "$K/old.keystore" --ks-pass env:OP --ks-key-alias androiddebugkey --key-pass env:OP \
+            --next-signer --ks "$K/release.p12" --ks-pass env:RP --ks-key-alias release --key-pass env:RP \
+            --lineage "$K/lineage" --rotation-min-sdk-version 28 \
+            --out "$APK_NAME.apk" "app/build/outputs/apk/release/app-release-unsigned.apk"
+          "$BT/apksigner" verify --print-certs "$APK_NAME.apk"
+          rm -rf "$K"
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.APK_NAME }}"
+          path: "${{ env.APK_NAME }}.apk"
+          if-no-files-found: error
+      - name: Publish stable or experimental APK
+        env:
+          GH_TOKEN: "${{ github.token }}"
+          PR_NUMBER: "${{ github.event.pull_request.number }}"
+          PR_SHA: "${{ github.event.pull_request.head.sha }}"
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            tag="experimental-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
+            title="$APP experimental PR #$PR_NUMBER"
+            target="$PR_SHA"
+            extra=(--prerelease --latest=false)
+          else
+            tag="v$VERSION"
+            title="$APP $VERSION"
+            target="$GITHUB_SHA"
+            extra=(--latest)
+          fi
+          gh release create "$tag" "$APK_NAME.apk" --repo "$GITHUB_REPOSITORY" \
+            --target "$target" --title "$title" --notes "Signed APK with tests and lint." "${extra[@]}"
