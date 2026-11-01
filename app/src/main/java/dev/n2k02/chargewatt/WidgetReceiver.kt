@@ -31,6 +31,7 @@ class ChargeWattWidget : AppWidgetProvider() {
         super.onDisabled(context)
     }
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.clearDeleted(appWidgetIds)
         super.onDeleted(context, appWidgetIds)
     }
