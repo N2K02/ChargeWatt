@@ -21,10 +21,14 @@ import java.util.concurrent.TimeUnit
 class ChargeWattWidget : AppWidgetProvider() {
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        // Placing a new widget is an explicit request to restart widget updates.
-        WidgetRunState.setPaused(context, false)
-        WidgetUpdater.invalidateWidgetIds()
-        WidgetUpdater.scheduleFallback(context)
+        // A launcher widget must never crash the host due to one scheduler error.
+        try {
+            WidgetRunState.setPaused(context, false)
+            WidgetUpdater.invalidateWidgetIds()
+            WidgetUpdater.scheduleFallback(context)
+        } catch (error: RuntimeException) {
+            Log.e("ChargeWattStartup", "Widget enable failed", error)
+        }
     }
     override fun onDisabled(context: Context) {
         WidgetUpdater.invalidateWidgetIds()
@@ -38,10 +42,14 @@ class ChargeWattWidget : AppWidgetProvider() {
         super.onDeleted(context, appWidgetIds)
     }
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
-        if (WidgetRunState.isPaused(context)) return
-        WidgetUpdater.invalidateWidgetIds()
-        WidgetUpdater.scheduleFallback(context)
-        WidgetUpdater.refresh(context, force = true)
+        try {
+            if (WidgetRunState.isPaused(context)) return
+            WidgetUpdater.invalidateWidgetIds()
+            WidgetUpdater.scheduleFallback(context)
+            WidgetUpdater.refresh(context, force = true)
+        } catch (error: RuntimeException) {
+            Log.e("ChargeWattStartup", "Widget update failed", error)
+        }
     }
 }
 

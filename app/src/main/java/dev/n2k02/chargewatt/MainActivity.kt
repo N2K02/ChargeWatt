@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -31,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -46,7 +49,9 @@ private val Green = Color(0xFF64EE94)
 private val Amber = Color(0xFFFFB74B)
 
 class MainActivity : ComponentActivity() {
+    companion object { private const val TAG = "ChargeWattStartup" }
     private val latest = mutableStateOf<BatteryReading?>(null)
+    private var batteryReceiverRegistered = false
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             BatterySampler.remember(intent)
@@ -54,25 +59,55 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStart() {
         super.onStart()
-        val sticky = registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        BatterySampler.remember(sticky)
+        // Sticky battery broadcasts are best effort. Registration failure must
+        // not terminate the Activity; the sampler can query a snapshot instead.
+        try {
+            val sticky = registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            batteryReceiverRegistered = true
+            BatterySampler.remember(sticky)
+            Log.i(TAG, "Battery observer registered")
+        } catch (e: RuntimeException) {
+            batteryReceiverRegistered = false
+            Log.e(TAG, "Battery observer registration failed", e)
+        }
     }
     override fun onStop() {
-        unregisterReceiver(batteryReceiver)
+        if (batteryReceiverRegistered) {
+            try {
+                unregisterReceiver(batteryReceiver)
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "Battery observer cleanup failed", e)
+            } finally {
+                batteryReceiverRegistered = false
+            }
+        }
         BatterySampler.clear()
         super.onStop()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i(TAG, "onCreate: restoring dashboard")
+        // WorkManager is registered when the widget is enabled/onUpdate. There
+        // is no reason to touch OS scheduling on an ordinary app launch.
         WidgetRunState.setPaused(this, false)
-        WidgetUpdater.scheduleFallback(this)
-        setContent {
+        try {
+            setContent {
             ChargeWattScreen(
                 reading = latest.value,
-                onRefresh = { WidgetUpdater.refresh(this, force = true) },
+                onRefresh = {
+                    try {
+                        WidgetUpdater.refresh(this, force = true)
+                    } catch (e: RuntimeException) {
+                        Log.e(TAG, "Manual widget refresh failed", e)
+                    }
+                },
                 onQuit = {
                     WidgetRunState.setPaused(this, true)
-                    WidgetUpdater.cancelFallback(this)
+                    try {
+                        WidgetUpdater.cancelFallback(this)
+                    } catch (e: RuntimeException) {
+                        Log.e(TAG, "Widget work cancellation failed during Quit", e)
+                    }
                     WidgetUpdater.clearAll()
                     finishAndRemoveTask()
                 },
@@ -80,10 +115,24 @@ class MainActivity : ComponentActivity() {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/N2K02/ChargeWatt/releases")))
                 },
             )
+            }
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "Dashboard composition startup failed", e)
+            // Do not strand the user in a force-close loop if the initial
+            // Compose host itself fails. A native message needs no Compose.
+            setContentView(TextView(this).apply {
+                text = "chargeWatt could not initialize its dashboard. Check ChargeWattStartup in Android logs."
+                textSize = 17f
+                setPadding(32, 56, 32, 32)
+            })
+            return
         }
+        Log.i(TAG, "Dashboard host initialized")
         lifecycleScope.launch {
+            var previousFailure: String? = null
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 while (isActive) {
+                    try {
                     // Battery current is queried off the UI thread; battery state
                     // and voltage are cached from a single dynamic broadcast receiver.
                     val reading = withContext(Dispatchers.IO) {
@@ -95,6 +144,18 @@ class MainActivity : ComponentActivity() {
                         sample
                     }
                     if (latest.value?.sameContent(reading) != true) latest.value = reading
+                    previousFailure = null
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        // One hardware-service failure must not kill the app or
+                        // produce a logcat storm every second.
+                        val failure = error.javaClass.name + ":" + error.message
+                        if (failure != previousFailure) {
+                            Log.e(TAG, "Battery polling or widget update failed", error)
+                            previousFailure = failure
+                        }
+                    }
                     delay(ChargeWattSettings.interval(this@MainActivity) * 1000L)
                 }
             }

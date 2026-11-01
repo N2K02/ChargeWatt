@@ -39,3 +39,7 @@ Github Actions requires existing repository secrets N2K02_PACKAGES_TOKEN and SIG
 For local compilation, use Gradle 9.6 with Android SDK and N2K02_PACKAGES_TOKEN, then run: gradle testDebugUnitTest lintDebug assembleDebug. Local debug builds are not signed for in-place updates over release APKs.
 
 The pinned shared updater dependency is included; the current Updates screen opens Github Releases rather than pretending that downloading/installing in-app is already implemented.
+
+## Startup crash diagnostics
+
+AndroidLogger tag: `ChargeWattStartup`. The dashboard no longer schedules WorkManager during `Activity.onCreate`; scheduling happens when a widget is enabled. Optional widget-manager, battery receiver registration, and device telemetry failures are isolated and logged rather than terminating the Activity. If a crash still occurs, enable monitoring in McpAdbAndroidLogger and relaunch chargeWatt to capture the full `AndroidRuntime` FATAL EXCEPTION stack trace. Passing CI cannot prove a physical-device startup succeeds.

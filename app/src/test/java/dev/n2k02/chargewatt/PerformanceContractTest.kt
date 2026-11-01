@@ -41,6 +41,19 @@ class PerformanceContractTest {
         assertTrue(activity.contains("BatterySampler.clear()"))
         assertTrue(activity.contains("WidgetRunState.setPaused(this, true)"))
     }
+    @Test fun startupIsIndependentOfWidgetScheduler() {
+        val activity = read("java/dev/n2k02/chargewatt/MainActivity.kt")
+        val startup = activity.substringAfter("override fun onCreate").substringBefore("lifecycleScope.launch")
+        assertFalse(startup.contains("WidgetUpdater.scheduleFallback(this)"))
+        assertTrue(startup.contains("Log.e(TAG, \"Dashboard composition startup failed\""))
+        assertTrue(activity.contains("catch (cancelled: CancellationException)"))
+        assertTrue(activity.contains("Battery polling or widget update failed"))
+        assertTrue(activity.contains("Battery observer registration failed"))
+        assertTrue(activity.contains("batteryReceiverRegistered"))
+        val provider = read("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
+        assertTrue(provider.contains("Widget enable failed"))
+        assertTrue(provider.contains("Widget update failed"))
+    }
     @Test fun widgetIsFixedOneByOne() {
         val provider = read("res/xml/chargewatt_widget_info.xml")
         assertTrue(provider.contains("android:targetCellWidth=\"1\""))
