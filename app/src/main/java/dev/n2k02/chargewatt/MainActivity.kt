@@ -1,6 +1,9 @@
 package dev.n2k02.chargewatt
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -28,9 +31,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -42,6 +47,21 @@ private val Amber = Color(0xFFFFB74B)
 
 class MainActivity : ComponentActivity() {
     private val latest = mutableStateOf<BatteryReading?>(null)
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            BatterySampler.remember(intent)
+        }
+    }
+    override fun onStart() {
+        super.onStart()
+        val sticky = registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        BatterySampler.remember(sticky)
+    }
+    override fun onStop() {
+        unregisterReceiver(batteryReceiver)
+        BatterySampler.clear()
+        super.onStop()
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WidgetUpdater.scheduleFallback(this)
@@ -51,6 +71,7 @@ class MainActivity : ComponentActivity() {
                 onRefresh = { WidgetUpdater.refresh(this, force = true) },
                 onQuit = {
                     WidgetUpdater.cancelFallback(this)
+                    WidgetUpdater.clearAll()
                     finishAndRemoveTask()
                 },
                 openReleases = {
@@ -61,8 +82,12 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 while (isActive) {
-                    val reading = BatterySampler.read(this@MainActivity)
-                    latest.value = reading
+                    // Battery current is queried off the UI thread; battery state
+                    // and voltage are cached from a single dynamic broadcast receiver.
+                    val reading = withContext(Dispatchers.IO) {
+                        BatterySampler.read(this@MainActivity)
+                    }
+                    if (latest.value?.sameContent(reading) != true) latest.value = reading
                     ChargingEventLog.recordIfChanged(this@MainActivity, reading)
                     WidgetUpdater.refresh(this@MainActivity, reading)
                     delay(ChargeWattSettings.interval(this@MainActivity) * 1000L)
@@ -84,7 +109,8 @@ private fun ChargeWattScreen(
     var interval by remember { mutableIntStateOf(ChargeWattSettings.interval(context)) }
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
-    val accent = if (reading?.mode == ChargeMode.DISCHARGING) Amber else Green
+    val accent = if (reading?.currentMa?.let { it < 0 } == true ||
+        (reading?.currentMa == null && reading?.mode == ChargeMode.DISCHARGING)) Amber else Green
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Green, secondary = Amber, background = Bg, surface = CardBg,
