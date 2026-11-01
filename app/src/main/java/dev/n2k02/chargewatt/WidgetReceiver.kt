@@ -25,6 +25,7 @@ class ChargeWattWidget : AppWidgetProvider() {
         WidgetUpdater.scheduleFallback(context)
     }
     override fun onDisabled(context: Context) {
+        WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.cancelFallback(context)
         WidgetUpdater.clearAll()
         super.onDisabled(context)
