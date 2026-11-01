@@ -44,6 +44,7 @@ data class BatteryReading(
             PowerSource.WIRELESS -> "Wireless Qi"
             PowerSource.AC -> "AC charging"
             PowerSource.USB -> "USB charging"
+            PowerSource.BATTERY -> "Charging"
             PowerSource.UNKNOWN -> "Charging"
         }
         else -> "Unknown"
