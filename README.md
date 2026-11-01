@@ -49,3 +49,6 @@ This app uses the exact LocalAdb WorkDatabase_Impl constructor preservation rule
 
 ## Shared UI contract
 mRadio is the canonical source for a single page header, Settings submenus, divider placement and system-bar insets. The power-source tile says **Battery** when Android reports the phone unplugged (plugged=0); charger labels distinguish AC, USB and Qi. No Logs screen or local charging-event history is included.
+
+## Glass widget design
+The 1×1 widget has an in-place lightweight glass UI: a static translucent rounded gradient with a fine rim, compact charging/draining circle, battery-percentage pill, large auto-sizing watts/current value, and secondary current/voltage readings. Dark and transparent theme drawables use the same resource IDs. Android RemoteViews cannot provide general live frosted wallpaper blur, so this is a blur-free glass approximation that avoids extra GPU rendering, bitmaps, and animation loops. The existing data-driven fingerprint and partial-update policy remains in place.

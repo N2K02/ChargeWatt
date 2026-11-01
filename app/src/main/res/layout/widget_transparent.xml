@@ -1,71 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 1x1 battery-side power widget. No blur engine, bitmaps or animations. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg_transparent"
-    android:paddingStart="5dp"
-    android:paddingEnd="5dp"
-    android:paddingTop="3dp"
-    android:paddingBottom="3dp"
+    android:orientation="vertical"
     android:gravity="center"
-    android:orientation="vertical">
+    android:background="@drawable/widget_bg_transparent"
+    android:paddingStart="7dp"
+    android:paddingEnd="7dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <!-- Frosted-glass header: circular activity badge + level pill -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:paddingBottom="3dp">
+
         <TextView
             android:id="@+id/widget_status"
+            android:layout_width="23dp"
+            android:layout_height="23dp"
+            android:background="@drawable/widget_status_circle"
+            android:gravity="center"
+            android:text="↓"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="#50F0A2"
+            android:includeFontPadding="false"/>
+
+        <TextView
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:gravity="start"
-            android:text="⚡"
-            android:textColor="#60F097"
-            android:textSize="10sp"
-            android:includeFontPadding="false" />
+            android:layout_height="1dp"/>
+
         <TextView
             android:id="@+id/widget_level"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="—%"
-            android:includeFontPadding="false"
-            android:textColor="#FFFFFF"
+            android:layout_height="23dp"
+            android:minWidth="38dp"
+            android:gravity="center"
+            android:background="@drawable/widget_chip_transparent"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="20%"
+            android:textColor="#FAFAFF"
+            android:fontFamily="sans"
             android:textStyle="bold"
-            android:textSize="10sp" />
+            android:textSize="12sp"
+            android:includeFontPadding="false"/>
     </LinearLayout>
+
+    <!-- Large single-line power/current headline; auto-shrinks on narrow 1x1 grids -->
     <TextView
         android:id="@+id/widget_value"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="24dp"
         android:gravity="center"
-        android:text="+1.75 W"
+        android:text="−2.16 W"
+        android:textColor="#FFB443"
+        android:fontFamily="sans"
+        android:textStyle="bold"
+        android:textSize="21sp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
-        android:textColor="#60F097"
-        android:textStyle="bold"
-        android:textSize="15sp" />
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="11sp"
+        android:autoSizeMaxTextSize="21sp"
+        android:autoSizeStepGranularity="1sp"/>
+
     <TextView
         android:id="@+id/widget_sub"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="+450 mA"
+        android:layout_marginTop="1dp"
+        android:text="−588 mA"
+        android:textColor="#F7F7F9"
+        android:fontFamily="sans"
+        android:textSize="12sp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
-        android:textColor="#FFFFFF"
-        android:textSize="10sp" />
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="9sp"
+        android:autoSizeMaxTextSize="12sp"
+        android:autoSizeStepGranularity="1sp"/>
+
     <TextView
         android:id="@+id/widget_voltage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="3.89 V"
+        android:layout_marginTop="1dp"
+        android:text="3.67 V"
+        android:textColor="#9BD6DE"
+        android:fontFamily="sans"
+        android:textSize="11sp"
         android:includeFontPadding="false"
         android:singleLine="true"
-        android:textColor="#B2D5D6"
-        android:textSize="10sp" />
+        android:ellipsize="end"/>
 </LinearLayout>

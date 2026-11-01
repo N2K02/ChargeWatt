@@ -164,9 +164,17 @@ object WidgetUpdater {
             value.currentMa != null -> value.currentMa < 0.0
             else -> value.mode == ChargeMode.DISCHARGING
         }
-        views.setTextColor(R.id.widget_value, if (draining) Color.rgb(255, 183, 75) else Color.rgb(94, 240, 140))
+        // Contrast follows measured net battery flow, independent of plug type.
+        // XML owns the glass background and pill shapes; no bitmap composition.
+        views.setTextColor(R.id.widget_value, if (draining) Color.rgb(255, 180, 67) else Color.rgb(91, 241, 156))
+        views.setTextColor(R.id.widget_status, Color.rgb(80, 240, 162))
         views.setTextViewText(R.id.widget_status,
             if (draining) "↓" else if (value.mode == ChargeMode.CHARGING) "⚡" else "•")
+        views.setContentDescription(
+            R.id.widget_root,
+            "${value.statusText}, ${value.levelText}, ${value.signedWatts}, " +
+                "${value.signedCurrent}, ${value.voltageText}"
+        )
         val open = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pending = PendingIntent.getActivity(

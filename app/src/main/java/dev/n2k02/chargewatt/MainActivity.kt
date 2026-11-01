@@ -270,8 +270,10 @@ private fun ChargeWattScreen(
                         icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
                         label = { Text("Quit") }
                     )
+                        }
+                    }
                 }
-            }
+            },
         ) { pad ->
             Column(
                 Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())
