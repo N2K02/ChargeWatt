@@ -85,11 +85,14 @@ class MainActivity : ComponentActivity() {
                     // Battery current is queried off the UI thread; battery state
                     // and voltage are cached from a single dynamic broadcast receiver.
                     val reading = withContext(Dispatchers.IO) {
-                        BatterySampler.read(this@MainActivity)
+                        val sample = BatterySampler.read(applicationContext)
+                        // RemoteViews IPC + event-only persistence must not block
+                        // Compose/main thread at the 1-second default cadence.
+                        ChargingEventLog.recordIfChanged(applicationContext, sample)
+                        WidgetUpdater.refresh(applicationContext, sample)
+                        sample
                     }
                     if (latest.value?.sameContent(reading) != true) latest.value = reading
-                    ChargingEventLog.recordIfChanged(this@MainActivity, reading)
-                    WidgetUpdater.refresh(this@MainActivity, reading)
                     delay(ChargeWattSettings.interval(this@MainActivity) * 1000L)
                 }
             }
