@@ -1,6 +1,11 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#66EF95"
-        android:pathData="M60,12 L29,59 L49,59 L43,95 L79,45 L56,45 Z"/>
+    <!-- Symbol + concentric charging ring, within adaptive icon safe area. -->
+    <path android:fillColor="#244E42"
+        android:pathData="M54,24 A30,30 0,1 1,53.9 24 Z" />
+    <path android:fillColor="#7CFC9B"
+        android:pathData="M54,28 A26,26 0,0 1,80 54 L75,54 A21,21 0,0 0,54 33 Z"/>
+    <path android:fillColor="#D5FFE5"
+        android:pathData="M61,25 L37,57 L51,57 L47,82 L73,47 L58,47 Z"/>
 </vector>
