@@ -26,7 +26,7 @@ Watts = absolute battery current in microamperes multiplied by battery voltage i
 - Widget redraws are fingerprint-cached in memory rather than persistently written to SharedPreferences every second. Lightweight text-only partial RemoteViews are sent for changes, with a periodic full refresh to bound system_server history.
 - Background charge/discharge transitions are shown at the next permitted periodic update. Android 8+ restrictions prevent relying on manifest-declared implicit power broadcasts for immediate notification-free updates.
 - No frame-driven graphics or continuous Compose/GPU animation.
-- WorkManager is canceled when the last widget is removed; Quit stops active UI sampling and the scheduled fallback. No receiver for charging/battery power changes is left enabled when the app is backgrounded.
+- WorkManager is canceled when the last widget is removed; Quit persistently pauses widget polling until the app is reopened or a new widget is placed. No widget-host update can silently restart the background job after Quit. No receiver for charging/battery power changes is left enabled when the app is backgrounded.
 - Status logs are written only upon charging source or state changes; entries older than 7 days are pruned on the next change.
 - Real CPU/GPU/power results require an APK installed on a device, and cannot be inferred from static code review. Measure with Android Studio Profiler, adb shell dumpsys gfxinfo dev.n2k02.chargewatt, and adb shell dumpsys batterystats --charged dev.n2k02.chargewatt.
 

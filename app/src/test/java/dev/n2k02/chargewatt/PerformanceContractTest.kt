@@ -1,0 +1,50 @@
+package dev.n2k02.chargewatt
+
+import org.junit.Assert.*
+import org.junit.Test
+import java.io.File
+
+/** Prevent battery/CPU regressions in future refactors. */
+class PerformanceContractTest {
+    private fun read(path: String): String {
+        val options = listOf(File("src/main/$path"), File("app/src/main/$path"))
+        val file = options.firstOrNull { it.isFile } ?: error("Cannot find source $path")
+        return file.readText()
+    }
+    @Test fun noNotificationOrForegroundOrWakeLockPermission() {
+        val manifest = read("AndroidManifest.xml")
+        assertFalse(manifest.contains("POST_NOTIFICATIONS"))
+        assertFalse(manifest.contains("FOREGROUND_SERVICE"))
+        assertFalse(manifest.contains("WAKE_LOCK"))
+        assertFalse(manifest.contains("<service"))
+    }
+    @Test fun noPowerChangeManifestWakeups() {
+        val manifest = read("AndroidManifest.xml")
+        assertFalse(manifest.contains("ACTION_POWER_CONNECTED"))
+        assertFalse(manifest.contains("ACTION_POWER_DISCONNECTED"))
+        assertFalse(manifest.contains("BOOT_COMPLETED"))
+    }
+    @Test fun widgetCodeAvoidsOneHertzDiskWritesAndAlwaysOnJobs() {
+        val widget = read("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
+        assertFalse(widget.contains("widget_cache"))
+        assertTrue(widget.contains("mutableMapOf<Int, String>()"))
+        assertTrue(widget.contains("partiallyUpdateAppWidget"))
+        assertTrue(widget.contains("15, TimeUnit.MINUTES"))
+        assertTrue(widget.contains("if (WidgetRunState.isPaused(context)) return"))
+        assertTrue(widget.contains("if (ids.isEmpty()) return"))
+    }
+    @Test fun samplingAndRenderingRespectActivityLifecycle() {
+        val activity = read("java/dev/n2k02/chargewatt/MainActivity.kt")
+        assertTrue(activity.contains("repeatOnLifecycle(Lifecycle.State.RESUMED)"))
+        assertTrue(activity.contains("withContext(Dispatchers.IO)"))
+        assertTrue(activity.contains("BatterySampler.remember"))
+        assertTrue(activity.contains("BatterySampler.clear()"))
+        assertTrue(activity.contains("WidgetRunState.setPaused(this, true)"))
+    }
+    @Test fun widgetIsFixedOneByOne() {
+        val provider = read("res/xml/chargewatt_widget_info.xml")
+        assertTrue(provider.contains("android:targetCellWidth=\"1\""))
+        assertTrue(provider.contains("android:targetCellHeight=\"1\""))
+        assertTrue(provider.contains("android:resizeMode=\"none\""))
+    }
+}

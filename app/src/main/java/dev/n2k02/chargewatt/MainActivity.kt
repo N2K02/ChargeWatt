@@ -64,12 +64,14 @@ class MainActivity : ComponentActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WidgetRunState.setPaused(this, false)
         WidgetUpdater.scheduleFallback(this)
         setContent {
             ChargeWattScreen(
                 reading = latest.value,
                 onRefresh = { WidgetUpdater.refresh(this, force = true) },
                 onQuit = {
+                    WidgetRunState.setPaused(this, true)
                     WidgetUpdater.cancelFallback(this)
                     WidgetUpdater.clearAll()
                     finishAndRemoveTask()

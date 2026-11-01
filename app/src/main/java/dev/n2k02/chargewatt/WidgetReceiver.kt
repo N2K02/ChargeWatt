@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit
 class ChargeWattWidget : AppWidgetProvider() {
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
+        // Placing a new widget is an explicit request to restart widget updates.
+        WidgetRunState.setPaused(context, false)
         WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.scheduleFallback(context)
     }
@@ -36,6 +38,7 @@ class ChargeWattWidget : AppWidgetProvider() {
         super.onDeleted(context, appWidgetIds)
     }
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
+        if (WidgetRunState.isPaused(context)) return
         WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.scheduleFallback(context)
         WidgetUpdater.refresh(context, force = true)
@@ -50,6 +53,17 @@ class ChargeWattWorker(context: Context, params: WorkerParameters) : Worker(cont
         // A device missing this optional telemetry must not enter a retry storm.
         Log.w("chargeWatt", "Deferred widget refresh failed; next cycle will check", error)
         Result.success()
+    }
+}
+
+/** Quit is persistent: Android widget-provider events must never resurrect the polling job. */
+object WidgetRunState {
+    private const val FILE = "chargewatt_runner"
+    fun isPaused(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("paused", false)
+    fun setPaused(context: Context, paused: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("paused", paused).apply()
     }
 }
 
@@ -82,7 +96,7 @@ object WidgetUpdater {
     }
 
     fun scheduleFallback(context: Context) {
-        if (widgetIds(context).isEmpty()) return
+        if (WidgetRunState.isPaused(context) || widgetIds(context).isEmpty()) return
         WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
             WORK, ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<ChargeWattWorker>(15, TimeUnit.MINUTES).build(),
@@ -110,6 +124,7 @@ object WidgetUpdater {
      * A full replacement every 60 seconds caps cached RemoteViews action growth.
      */
     @Synchronized fun refresh(context: Context, reading: BatteryReading? = null, force: Boolean = false) {
+        if (WidgetRunState.isPaused(context)) return
         val ids = widgetIds(context)
         if (ids.isEmpty()) return // No widget => no battery-system call.
         val value = reading ?: BatterySampler.read(context)
