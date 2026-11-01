@@ -64,9 +64,18 @@ object WidgetUpdater {
     private val fingerprints = mutableMapOf<Int, String>()
     private val themes = mutableMapOf<Int, String>()
     private val lastFull = mutableMapOf<Int, Long>()
+    private var cachedWidgetIds: IntArray? = null
 
-    fun widgetIds(context: Context): IntArray = AppWidgetManager.getInstance(context)
-        .getAppWidgetIds(ComponentName(context, ChargeWattWidget::class.java))
+    /** Widget-host inventory changes invalidate the cache; do not query Binder at 1Hz. */
+    @Synchronized fun invalidateWidgetIds() { cachedWidgetIds = null }
+    @Synchronized fun widgetIds(context: Context): IntArray {
+        val cached = cachedWidgetIds
+        if (cached != null) return cached.clone()
+        val ids = AppWidgetManager.getInstance(context)
+            .getAppWidgetIds(ComponentName(context, ChargeWattWidget::class.java))
+        cachedWidgetIds = ids
+        return ids.clone()
+    }
 
     fun scheduleFallback(context: Context) {
         if (widgetIds(context).isEmpty()) return
