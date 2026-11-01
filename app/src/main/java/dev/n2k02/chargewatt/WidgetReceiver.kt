@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
 class ChargeWattWidget : AppWidgetProvider() {
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
+        WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.scheduleFallback(context)
     }
     override fun onDisabled(context: Context) {
