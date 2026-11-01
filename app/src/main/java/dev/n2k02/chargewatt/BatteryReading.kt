@@ -8,7 +8,7 @@ import java.util.Locale
 import kotlin.math.abs
 
 enum class ChargeMode { CHARGING, DISCHARGING, FULL, IDLE }
-enum class PowerSource { AC, USB, WIRELESS, UNKNOWN }
+enum class PowerSource { BATTERY, AC, USB, WIRELESS, UNKNOWN }
 
 data class BatteryReading(
     val level: Int?,
@@ -27,6 +27,13 @@ data class BatteryReading(
     val voltageText: String get() = voltageV?.let { "%.2f V".format(Locale.US, it) } ?: "— V"
     val tempText: String get() = temperatureC?.let { "%.1f °C".format(Locale.US, it) } ?: "— °C"
     val levelText: String get() = level?.let { "$it%" } ?: "—%"
+    val powerSourceText: String get() = when (source) {
+        PowerSource.BATTERY -> "Battery"
+        PowerSource.AC -> "AC charger"
+        PowerSource.USB -> "USB charger"
+        PowerSource.WIRELESS -> "Wireless Qi"
+        PowerSource.UNKNOWN -> "Unknown charger"
+    }
     val statusText: String get() = when {
         mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
         mode == ChargeMode.DISCHARGING -> "Discharging"
@@ -66,6 +73,7 @@ object BatteryMath {
         BatteryManager.BATTERY_PLUGGED_AC -> PowerSource.AC
         BatteryManager.BATTERY_PLUGGED_USB -> PowerSource.USB
         BatteryManager.BATTERY_PLUGGED_WIRELESS -> PowerSource.WIRELESS
+        0 -> PowerSource.BATTERY
         else -> PowerSource.UNKNOWN
     }
     fun mode(status: Int, plugged: Int): ChargeMode = when (status) {
@@ -90,6 +98,13 @@ object ChargeWattSettings {
     fun theme(context: Context): String = prefs(context).getString(KEY_THEME, "dark") ?: "dark"
     fun setTheme(context: Context, value: String) {
         prefs(context).edit().putString(KEY_THEME, if (value == "transparent") value else "dark").apply()
+    }
+    fun removeLegacyEvents(context: Context) {
+        val settings = prefs(context)
+        if (!settings.getBoolean("legacy_events_deleted_v1", false)) {
+            context.deleteSharedPreferences("chargewatt_events")
+            settings.edit().putBoolean("legacy_events_deleted_v1", true).apply()
+        }
     }
     fun unit(context: Context): String = prefs(context).getString(KEY_UNIT, "W") ?: "W"
     fun setUnit(context: Context, value: String) {

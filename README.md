@@ -9,15 +9,15 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 - Dark or transparent widget themes.
 - Choose W or mA as the main value.
 - User-selectable refresh 1–10 seconds, default 1 second.
-- One consistent compact header, Home, Settings (Details, Logs, Updates), and Quit.
+- One consistent mRadio-style header above the status bar, Home, Settings (Widget display, Battery details, About & updates), and Quit. Settings uses compact icon-aligned ListItem rows; Android Back returns from each submenu.
 - No notifications, notification permission, foreground service, wake locks, continuous animation, or network telemetry.
 - Android 8+ (minSdk 26), Android 17 compile/target API 37.
 
 ## Important timing and measurement limits
 
-The 1-second interval is implemented when the dashboard is resumed. The UI lifecycle cancels polling when the screen is paused; only value changes cause RemoteViews widget redraw. In the background, Android cannot guarantee second-by-second widget updates without a foreground-running service. The widget is updated by power connection events and a WorkManager periodic fallback (minimum 15 minutes). The launcher may delay those updates.
+The 1-second interval is implemented when the dashboard is resumed. The UI lifecycle cancels polling when the screen is paused; only value changes cause RemoteViews widget redraw. In the background, Android cannot guarantee second-by-second widget updates without a foreground-running service. The widget is updated by a WorkManager periodic fallback (minimum 15 minutes). The launcher may delay those updates.
 
-Watts = absolute battery current in microamperes multiplied by battery voltage in millivolts, divided by 1,000,000,000. The sign is determined by charging status. This is **battery-side power**, not the power delivered by the wall charger, USB brick, or Qi pad. Unsupported battery current reports as unavailable rather than a fake value.
+Watts = signed battery current in microamperes multiplied by battery voltage in millivolts, divided by 1,000,000,000. Current direction determines the sign. This is **battery-side power**, not the power delivered by the wall charger, USB brick, or Qi pad. Unsupported battery current reports as unavailable rather than a fake value.
 
 ## CPU and GPU review
 
@@ -27,7 +27,7 @@ Watts = absolute battery current in microamperes multiplied by battery voltage i
 - Background charge/discharge transitions are shown at the next permitted periodic update. Android 8+ restrictions prevent relying on manifest-declared implicit power broadcasts for immediate notification-free updates.
 - No frame-driven graphics or continuous Compose/GPU animation.
 - WorkManager is canceled when the last widget is removed; Quit persistently pauses widget polling until the app is reopened or a new widget is placed. No widget-host update can silently restart the background job after Quit. No receiver for charging/battery power changes is left enabled when the app is backgrounded.
-- Status logs are written only upon charging source or state changes; entries older than 7 days are pruned on the next change.
+- No in-app Logs menu or persistent charging-event history. A one-time migration clears any legacy chargewatt_events preferences.
 - Real CPU/GPU/power results require an APK installed on a device, and cannot be inferred from static code review. Measure with Android Studio Profiler, adb shell dumpsys gfxinfo dev.n2k02.chargewatt, and adb shell dumpsys batterystats --charged dev.n2k02.chargewatt.
 
 ## Build channels and signing
@@ -46,3 +46,6 @@ AndroidLogger tag: `ChargeWattStartup`. The dashboard no longer schedules WorkMa
 
 ## WorkManager release startup fix
 This app uses the exact LocalAdb WorkDatabase_Impl constructor preservation rules so R8 cannot strip the public no-arg constructor used by AndroidX Startup before MainActivity is created. CI validates the **minified release DEX** using `scripts/verify_release_workmanager.py` before signing, and launches the signed APK twice in an emulator using `scripts/verify_startup_emulator.sh`. Never replace these gates with only a debug APK build. The experimental and stable channels use the same rules, R8 minification, and signing identity.
+
+## Shared UI contract
+mRadio is the canonical source for a single page header, Settings submenus, divider placement and system-bar insets. The power-source tile says **Battery** when Android reports the phone unplugged (plugged=0); charger labels distinguish AC, USB and Qi. No Logs screen or local charging-event history is included.

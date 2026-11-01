@@ -64,6 +64,20 @@ class PerformanceContractTest {
         assertTrue(workflow.contains("app-release-unsigned.apk"))
         assertTrue(workflow.contains("script: bash scripts/verify_startup_emulator.sh"))
     }
+    @Test fun mRadioHeaderAndNavigationRespectSystemBars() {
+        val ui = read("java/dev/n2k02/chargewatt/MainActivity.kt")
+        assertTrue(ui.contains("enableEdgeToEdge()"))
+        assertTrue(ui.contains(".statusBarsPadding()"))
+        assertTrue(ui.contains("navigationBarsPadding()"))
+        assertTrue(ui.contains("onClick = { page = \"Settings\" }"))
+        assertTrue(ui.contains("BackHandler(enabled = page != \"Home\")"))
+        assertTrue(ui.contains("SettingsMenuRow("))
+        assertTrue(ui.contains("ListItem("))
+        assertFalse(ui.contains("page = \"Logs\""))
+        assertFalse(ui.contains("\"Logs\" ->"))
+        assertFalse(ui.contains("ChargingEventLog"))
+        assertFalse(ui.contains("SettingsItem("))
+    }
     @Test fun widgetIsFixedOneByOne() {
         val provider = read("res/xml/chargewatt_widget_info.xml")
         assertTrue(provider.contains("android:targetCellWidth=\"1\""))

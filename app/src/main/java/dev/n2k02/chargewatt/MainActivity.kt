@@ -10,6 +10,10 @@ import android.util.Log
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +24,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -86,6 +93,8 @@ class MainActivity : ComponentActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        ChargeWattSettings.removeLegacyEvents(this)
         Log.i(TAG, "onCreate: restoring dashboard")
         // WorkManager is registered when the widget is enabled/onUpdate. There
         // is no reason to touch OS scheduling on an ordinary app launch.
@@ -139,7 +148,6 @@ class MainActivity : ComponentActivity() {
                         val sample = BatterySampler.read(applicationContext)
                         // RemoteViews IPC + event-only persistence must not block
                         // Compose/main thread at the 1-second default cadence.
-                        ChargingEventLog.recordIfChanged(applicationContext, sample)
                         WidgetUpdater.refresh(applicationContext, sample)
                         sample
                     }
@@ -172,6 +180,9 @@ private fun ChargeWattScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var page by rememberSaveable { mutableStateOf("Home") }
+    BackHandler(enabled = page != "Home") {
+        page = if (page == "Settings") "Home" else "Settings"
+    }
     var interval by remember { mutableIntStateOf(ChargeWattSettings.interval(context)) }
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
@@ -186,31 +197,62 @@ private fun ChargeWattScreen(
         Scaffold(
             containerColor = Bg,
             topBar = {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (page != "Home" && page != "Settings") {
-                            IconButton(onClick = { page = "Settings" }, modifier = Modifier.size(30.dp)) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                            }
-                        } else {
-                            Icon(if (page == "Home") Icons.Default.Home else Icons.Default.Settings, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
+                // Single app-owned header on every screen, exactly like mRadio.
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().statusBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(
+                                when (page) {
+                                    "Settings" -> Icons.Default.Settings
+                                    "Widget" -> Icons.Default.Tune
+                                    "Details" -> Icons.Default.Info
+                                    "Updates" -> Icons.Default.SystemUpdate
+                                    else -> Icons.Default.Home
+                                },
+                                contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                when (page) {
+                                    "Widget" -> "Widget display"
+                                    "Details" -> "Battery details"
+                                    "Updates" -> "About & updates"
+                                    else -> page
+                                },
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
-                        Text(page, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Green, modifier = Modifier.size(21.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("chargeWatt", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    android.widget.ImageView(ctx).apply {
+                                        setImageDrawable(ctx.packageManager.getApplicationIcon(ctx.packageName))
+                                        scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                                    }
+                                },
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text("chargeWatt", style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             },
             bottomBar = {
-                NavigationBar(containerColor = CardBg) {
+                Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.navigationBarsPadding()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        NavigationBar(containerColor = CardBg) {
                     NavigationBarItem(
                         selected = page == "Home",
                         onClick = { page = "Home" },
@@ -268,7 +310,7 @@ private fun ChargeWattScreen(
                             ValueTile("Battery", reading?.levelText ?: "—%", Modifier.weight(1f))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ValueTile("Power source", reading?.source?.name ?: "Unknown", Modifier.weight(1f))
+                            ValueTile("Power source", reading?.powerSourceText ?: "Unavailable", Modifier.weight(1f))
                             ValueTile("Health", reading?.health ?: "Unknown", Modifier.weight(1f))
                         }
                         Button(onClick = { page = "Details" }, modifier = Modifier.fillMaxWidth()) {
@@ -280,6 +322,27 @@ private fun ChargeWattScreen(
                         )
                     }
                     "Settings" -> {
+                        Text(
+                            "Widget and battery settings",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, top = 6.dp, bottom = 12.dp)
+                        )
+                        SettingsMenuRow(
+                            "Widget display", "Theme, power units and refresh interval",
+                            Icons.Default.Tune
+                        ) { page = "Widget" }
+                        SettingsMenuRow(
+                            "Battery details", "Current, voltage, health and cycle count",
+                            Icons.Default.Info
+                        ) { page = "Details" }
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                        SettingsMenuRow(
+                            "About & updates", "App version and releases",
+                            Icons.Default.SystemUpdate
+                        ) { page = "Updates" }
+                    }
+                    "Widget" -> {
                         SectionLabel("Widget • 1×1")
                         ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = CardBg)) {
                             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -327,31 +390,22 @@ private fun ChargeWattScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(6.dp))
-                        SectionLabel("Information")
-                        SettingsItem("Battery details", "Voltage, current, temperature and health") { page = "Details" }
-                        SettingsItem("Logs", "Charging changes only, daily retention") { page = "Logs" }
-                        HorizontalDivider()
-                        SettingsItem("Updates", "View signed stable and experimental releases") { page = "Updates" }
                     }
                     "Details" -> {
-                        ValueTile("State", reading?.statusText ?: "Unknown")
-                        ValueTile("Battery current", reading?.signedCurrent ?: "— mA")
-                        ValueTile("Battery-side power", reading?.signedWatts ?: "— W")
-                        ValueTile("Voltage", reading?.voltageText ?: "— V")
-                        ValueTile("Temperature", reading?.tempText ?: "— °C")
-                        ValueTile("Battery level", reading?.levelText ?: "—%")
-                        ValueTile("Health", reading?.health ?: "Unknown")
-                        ValueTile("Cycle count", reading?.cycleCount?.toString() ?: "Not available")
-                        Text("Current is device-reported, may be averaged or unavailable. Watts = battery current × battery voltage, not adapter wattage.",
-                            color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
-                    }
-                    "Logs" -> {
-                        Text("Events are recorded only when charging state or source changes, not every second.",
-                            style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                        val lines = ChargingEventLog.read(context)
-                        if (lines.isEmpty()) Text("No charging changes recorded yet.")
-                        lines.asReversed().forEach { ValueTile("Event", it) }
+                        DetailRow("State", reading?.statusText ?: "Unknown")
+                        DetailRow("Battery current", reading?.signedCurrent ?: "— mA")
+                        DetailRow("Battery-side power", reading?.signedWatts ?: "— W")
+                        DetailRow("Voltage", reading?.voltageText ?: "— V")
+                        DetailRow("Temperature", reading?.tempText ?: "— °C")
+                        DetailRow("Battery level", reading?.levelText ?: "—%")
+                        DetailRow("Power source", reading?.powerSourceText ?: "Unavailable")
+                        DetailRow("Health", reading?.health ?: "Unknown")
+                        DetailRow("Cycle count", reading?.cycleCount?.toString() ?: "Not available")
+                        Text(
+                            "Device-reported battery-side power, not wall-adapter input power.",
+                            color = Color.LightGray, style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                     }
                     "Updates" -> {
                         ValueTile("Channel identity", "Experimental and stable use the same package and release signature.")
@@ -381,14 +435,27 @@ private fun ValueTile(label: String, value: String, modifier: Modifier = Modifie
     }
 }
 @Composable
-private fun SettingsItem(title: String, subtitle: String, action: () -> Unit) {
-    Card(
-        onClick = action, modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-        }
-    }
+private fun SettingsMenuRow(
+    title: String, subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    action: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = action)
+    )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    ListItem(
+        headlineContent = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+        supportingContent = {
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
+    )
 }

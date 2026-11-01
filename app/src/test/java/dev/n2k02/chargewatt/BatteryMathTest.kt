@@ -12,6 +12,16 @@ class BatteryMathTest {
         assertEquals(10, BatteryMath.refreshSeconds(10))
         assertEquals(10, BatteryMath.refreshSeconds(999))
     }
+    @Test fun powerSourceIsBatteryWhenUnplugged() {
+        assertEquals(PowerSource.BATTERY, BatteryMath.source(0))
+        assertEquals(PowerSource.AC, BatteryMath.source(android.os.BatteryManager.BATTERY_PLUGGED_AC))
+        assertEquals(PowerSource.USB, BatteryMath.source(android.os.BatteryManager.BATTERY_PLUGGED_USB))
+        assertEquals(PowerSource.WIRELESS, BatteryMath.source(android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS))
+        assertEquals("Battery", example(ChargeMode.DISCHARGING)
+            .copy(source = PowerSource.BATTERY).powerSourceText)
+        assertEquals("Wireless Qi", example(ChargeMode.CHARGING)
+            .copy(source = PowerSource.WIRELESS).powerSourceText)
+    }
     @Test fun powerUsesMicroampsAndMillivolts() {
         assertEquals(1.7505, BatteryMath.watts(450000, 3890)!!, 0.0001)
         assertEquals(-1.7505, BatteryMath.watts(-450000, 3890)!!, 0.0001)
