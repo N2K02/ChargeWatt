@@ -54,6 +54,16 @@ class PerformanceContractTest {
         assertTrue(provider.contains("Widget enable failed"))
         assertTrue(provider.contains("Widget update failed"))
     }
+    @Test fun releaseWorkManagerConstructorIsKept() {
+        val rules = File("proguard-rules.pro").readText()
+        assertTrue(rules.contains("-keep class androidx.work.impl.WorkDatabase_Impl"))
+        assertTrue(rules.contains("public <init>();"))
+        assertTrue(rules.contains("-keep class * extends androidx.room.RoomDatabase"))
+        val workflow = File("../.github/workflows/build.yml").readText()
+        assertTrue(workflow.contains("verify_release_workmanager.py"))
+        assertTrue(workflow.contains("app-release-unsigned.apk"))
+        assertTrue(workflow.contains("script: bash scripts/verify_startup_emulator.sh"))
+    }
     @Test fun widgetIsFixedOneByOne() {
         val provider = read("res/xml/chargewatt_widget_info.xml")
         assertTrue(provider.contains("android:targetCellWidth=\"1\""))

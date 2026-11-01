@@ -43,3 +43,6 @@ The pinned shared updater dependency is included; the current Updates screen ope
 ## Startup crash diagnostics
 
 AndroidLogger tag: `ChargeWattStartup`. The dashboard no longer schedules WorkManager during `Activity.onCreate`; scheduling happens when a widget is enabled. Optional widget-manager, battery receiver registration, and device telemetry failures are isolated and logged rather than terminating the Activity. If a crash still occurs, enable monitoring in McpAdbAndroidLogger and relaunch chargeWatt to capture the full `AndroidRuntime` FATAL EXCEPTION stack trace. Passing CI cannot prove a physical-device startup succeeds.
+
+## WorkManager release startup fix
+This app uses the exact LocalAdb WorkDatabase_Impl constructor preservation rules so R8 cannot strip the public no-arg constructor used by AndroidX Startup before MainActivity is created. CI validates the **minified release DEX** using `scripts/verify_release_workmanager.py` before signing, and launches the signed APK twice in an emulator using `scripts/verify_startup_emulator.sh`. Never replace these gates with only a debug APK build. The experimental and stable channels use the same rules, R8 minification, and signing identity.

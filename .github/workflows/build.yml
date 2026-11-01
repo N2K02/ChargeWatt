@@ -73,6 +73,8 @@ jobs:
           set -euo pipefail
           gradle --no-daemon testDebugUnitTest lintDebug assembleRelease \
             -PappVersion="$VERSION" -PappVersionCode="$VERSION_CODE" -PappVersionSuffix="$SUFFIX"
+      - name: Verify WorkManager public constructor exists in minified APK
+        run: python3 scripts/verify_release_workmanager.py app/build/outputs/apk/release/app-release-unsigned.apk
       - name: Sign stable and experimental with the same key
         env:
           SIGNING_PASSPHRASE: "${{ secrets.SIGNING_PASSPHRASE }}"
@@ -114,29 +116,7 @@ jobs:
           target: google_apis
           arch: x86_64
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            set -euo pipefail
-            PKG=dev.n2k02.chargewatt
-            adb install -r "$APK_NAME.apk"
-            adb logcat -c
-            for attempt in 1 2; do
-              echo "chargeWatt startup smoke attempt $attempt"
-              adb shell am start -W -n "$PKG/.MainActivity"
-              sleep 7
-              if ! adb shell pidof "$PKG" >/dev/null; then
-                echo "::error::chargeWatt process died during startup"
-                adb logcat -d -v time > startup-logcat.txt
-                grep -E 'AndroidRuntime|FATAL EXCEPTION|ChargeWattStartup|dev.n2k02.chargewatt' startup-logcat.txt | tail -100 || true
-                exit 1
-              fi
-              if adb logcat -d -s AndroidRuntime:E | grep -F "Process: $PKG"; then
-                echo "::error::AndroidRuntime reported a chargeWatt crash"
-                adb logcat -d -v time > startup-logcat.txt
-                exit 1
-              fi
-              adb shell am force-stop "$PKG"
-            done
-            echo "Launch/relaunch of the signed APK succeeded on API 35"
+          script: bash scripts/verify_startup_emulator.sh
       - name: Preserve emulator crash log when startup fails
         if: failure()
         uses: actions/upload-artifact@v4
