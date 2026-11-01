@@ -4,7 +4,7 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 
 ## Features
 
-- Shows charging (green) and discharging (amber) automatically, including wireless Qi charging.
+- Shows charging (green) and discharging (amber) automatically, including wireless Qi charging. Current sign comes from BatteryManager, so a connected charger with net drain is correctly displayed as negative.
 - Shows battery-side watts (W), current (mA), voltage (V), and battery percentage.
 - Dark or transparent widget themes.
 - Choose W or mA as the main value.
@@ -21,10 +21,12 @@ Watts = absolute battery current in microamperes multiplied by battery voltage i
 
 ## CPU and GPU review
 
-- UI sampling reads a single sticky battery broadcast and BatteryManager current, at 1–10 seconds only while RESUMED.
-- Widget redraws are fingerprint-cached by metrics, unit and theme.
+- Foreground listener caches battery broadcasts for voltage, temperature, level and state; only signed instantaneous current is queried on a dedicated I/O coroutine every 1–10 seconds while RESUMED.
+- The 1-second setting remains the default. UI state is updated only when readings change.
+- Widget redraws are fingerprint-cached in memory rather than persistently written to SharedPreferences every second. Lightweight text-only partial RemoteViews are sent for changes, with a periodic full refresh to bound system_server history.
+- Background charge/discharge transitions are shown at the next permitted periodic update. Android 8+ restrictions prevent relying on manifest-declared implicit power broadcasts for immediate notification-free updates.
 - No frame-driven graphics or continuous Compose/GPU animation.
-- WorkManager is canceled when the last widget is removed; Quit stops active UI sampling and the scheduled fallback.
+- WorkManager is canceled when the last widget is removed; Quit stops active UI sampling and the scheduled fallback. No receiver for charging/battery power changes is left enabled when the app is backgrounded.
 - Status logs are written only upon charging source or state changes; entries older than 7 days are pruned on the next change.
 - Real CPU/GPU/power results require an APK installed on a device, and cannot be inferred from static code review. Measure with Android Studio Profiler, adb shell dumpsys gfxinfo dev.n2k02.chargewatt, and adb shell dumpsys batterystats --charged dev.n2k02.chargewatt.
 
