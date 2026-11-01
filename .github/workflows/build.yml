@@ -102,6 +102,48 @@ jobs:
             --out "$APK_NAME.apk" "app/build/outputs/apk/release/app-release-unsigned.apk"
           "$BT/apksigner" verify --print-certs "$APK_NAME.apk"
           rm -rf "$K"
+      - name: Enable KVM for startup smoke test
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch release-signed APK on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            PKG=dev.n2k02.chargewatt
+            adb install -r "$APK_NAME.apk"
+            adb logcat -c
+            for attempt in 1 2; do
+              echo "chargeWatt startup smoke attempt $attempt"
+              adb shell am start -W -n "$PKG/.MainActivity"
+              sleep 7
+              if ! adb shell pidof "$PKG" >/dev/null; then
+                echo "::error::chargeWatt process died during startup"
+                adb logcat -d -v time > startup-logcat.txt
+                grep -E 'AndroidRuntime|FATAL EXCEPTION|ChargeWattStartup|dev.n2k02.chargewatt' startup-logcat.txt | tail -100 || true
+                exit 1
+              fi
+              if adb logcat -d -s AndroidRuntime:E | grep -F "Process: $PKG"; then
+                echo "::error::AndroidRuntime reported a chargeWatt crash"
+                adb logcat -d -v time > startup-logcat.txt
+                exit 1
+              fi
+              adb shell am force-stop "$PKG"
+            done
+            echo "Launch/relaunch of the signed APK succeeded on API 35"
+      - name: Preserve emulator crash log when startup fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chargewatt-startup-crash-log
+          path: startup-logcat.txt
+          if-no-files-found: ignore
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
