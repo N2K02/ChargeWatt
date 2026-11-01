@@ -136,7 +136,8 @@ object WidgetUpdater {
         val pending = PendingIntent.getActivity(
             context, 0, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        views.setOnClickPendingIntent(R.id.widget_root, pending)
+        // Only a full render needs the click action; partial updates remain text-only.
+        if (full.isNotEmpty()) views.setOnClickPendingIntent(R.id.widget_root, pending)
         val manager = AppWidgetManager.getInstance(context)
         if (full.isNotEmpty()) manager.updateAppWidget(full.toIntArray(), views)
         if (partial.isNotEmpty()) manager.partiallyUpdateAppWidget(partial.toIntArray(), views)
