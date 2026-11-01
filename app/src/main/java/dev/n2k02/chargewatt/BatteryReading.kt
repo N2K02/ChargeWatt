@@ -22,32 +22,27 @@ data class BatteryReading(
     val cycleCount: Int?,
     val sampledAtMs: Long,
 ) {
-    val signedWatts: String get() = when {
-        powerW == null -> "— W"
-        mode == ChargeMode.CHARGING -> "+%.2f W".format(Locale.US, powerW)
-        mode == ChargeMode.DISCHARGING -> "−%.2f W".format(Locale.US, powerW)
-        else -> "%.2f W".format(Locale.US, powerW)
-    }
-    val signedCurrent: String get() = when {
-        currentMa == null -> "— mA"
-        mode == ChargeMode.CHARGING -> "+%.0f mA".format(Locale.US, currentMa)
-        mode == ChargeMode.DISCHARGING -> "−%.0f mA".format(Locale.US, currentMa)
-        else -> "%.0f mA".format(Locale.US, currentMa)
-    }
+    val signedWatts: String get() = BatteryMath.formatSigned(powerW, "W", 2)
+    val signedCurrent: String get() = BatteryMath.formatSigned(currentMa, "mA", 0)
     val voltageText: String get() = voltageV?.let { "%.2f V".format(Locale.US, it) } ?: "— V"
     val tempText: String get() = temperatureC?.let { "%.1f °C".format(Locale.US, it) } ?: "— °C"
     val levelText: String get() = level?.let { "$it%" } ?: "—%"
-    val statusText: String get() = when (mode) {
-        ChargeMode.DISCHARGING -> "Discharging"
-        ChargeMode.FULL -> "Full"
-        ChargeMode.IDLE -> "Not charging"
-        ChargeMode.CHARGING -> when (source) {
+    val statusText: String get() = when {
+        mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
+        mode == ChargeMode.DISCHARGING -> "Discharging"
+        mode == ChargeMode.FULL -> "Full"
+        mode == ChargeMode.IDLE -> if (source == PowerSource.UNKNOWN) "State unknown" else "Not charging"
+        mode == ChargeMode.CHARGING -> when (source) {
+
             PowerSource.WIRELESS -> "Wireless Qi"
             PowerSource.AC -> "AC charging"
             PowerSource.USB -> "USB charging"
             PowerSource.UNKNOWN -> "Charging"
         }
+        else -> "Unknown"
     }
+    fun sameContent(other: BatteryReading): Boolean =
+        copy(sampledAtMs = 0L) == other.copy(sampledAtMs = 0L)
     fun fingerprint(unit: String, theme: String): String =
         listOf(mode, source, levelText, signedWatts, signedCurrent, voltageText, theme, unit).joinToString("|")
 }
@@ -59,7 +54,13 @@ object BatteryMath {
         if (currentMicroAmps == null || voltageMilliVolts == null) return null
         if (currentMicroAmps == Int.MIN_VALUE || voltageMilliVolts <= 0) return null
         if (abs(currentMicroAmps.toLong()) > 20_000_000L) return null
-        return abs(currentMicroAmps.toDouble()) * voltageMilliVolts / 1_000_000_000.0
+        return currentMicroAmps.toDouble() * voltageMilliVolts / 1_000_000_000.0
+    }
+    fun formatSigned(value: Double?, unit: String, digits: Int): String {
+        if (value == null || !value.isFinite()) return "— $unit"
+        val number = "%."+digits+"f"
+        val magnitude = String.format(Locale.US, number, abs(value))
+        return (if (value > 0) "+" else if (value < 0) "−" else "") + magnitude + " " + unit
     }
     fun source(plugged: Int): PowerSource = when (plugged) {
         BatteryManager.BATTERY_PLUGGED_AC -> PowerSource.AC
@@ -67,11 +68,11 @@ object BatteryMath {
         BatteryManager.BATTERY_PLUGGED_WIRELESS -> PowerSource.WIRELESS
         else -> PowerSource.UNKNOWN
     }
-    fun mode(status: Int, plugged: Int): ChargeMode = when {
-        status == BatteryManager.BATTERY_STATUS_FULL -> ChargeMode.FULL
-        status == BatteryManager.BATTERY_STATUS_CHARGING -> ChargeMode.CHARGING
-        plugged != 0 -> ChargeMode.IDLE
-        else -> ChargeMode.DISCHARGING
+    fun mode(status: Int, plugged: Int): ChargeMode = when (status) {
+        BatteryManager.BATTERY_STATUS_FULL -> ChargeMode.FULL
+        BatteryManager.BATTERY_STATUS_CHARGING -> ChargeMode.CHARGING
+        BatteryManager.BATTERY_STATUS_DISCHARGING -> ChargeMode.DISCHARGING
+        else -> ChargeMode.IDLE
     }
 }
 
@@ -97,9 +98,16 @@ object ChargeWattSettings {
 }
 
 object BatterySampler {
+    // The resumed activity caches ACTION_BATTERY_CHANGED, avoiding 1Hz sticky
+    // broadcast reads. Workers use a single sticky query when not in foreground.
+    @Volatile private var latestIntent: Intent? = null
+    fun remember(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_BATTERY_CHANGED) latestIntent = intent
+    }
+    fun clear() { latestIntent = null }
     fun read(context: Context): BatteryReading {
         val battery = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val intent = latestIntent ?: context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
             ?: BatteryManager.BATTERY_STATUS_UNKNOWN
         val plugged = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
@@ -109,7 +117,7 @@ object BatterySampler {
         val mv = intent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)?.takeIf { it > 0 }
         val current = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
             .takeUnless { it == Int.MIN_VALUE || abs(it.toLong()) > 20_000_000L }
-        val ma = current?.let { abs(it.toDouble()) / 1000.0 }
+        val ma = current?.div(1000.0)
         val c = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
             ?.takeUnless { it == Int.MIN_VALUE }?.div(10.0)
         val health = when (intent?.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)) {
