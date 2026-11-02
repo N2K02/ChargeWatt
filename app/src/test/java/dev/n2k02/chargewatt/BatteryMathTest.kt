@@ -5,7 +5,7 @@ import org.junit.Test
 
 class BatteryMathTest {
     @Test fun defaultAndBounds() {
-        assertEquals(2, BatteryMath.DEFAULT_REFRESH_SECONDS)
+        assertEquals(1, BatteryMath.DEFAULT_REFRESH_SECONDS)
         assertEquals(1, BatteryMath.refreshSeconds(-5))
         assertEquals(1, BatteryMath.refreshSeconds(1))
         assertEquals(5, BatteryMath.refreshSeconds(5))
