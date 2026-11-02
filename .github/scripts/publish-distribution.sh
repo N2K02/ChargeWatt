@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Publish update metadata that points to the APK repo's existing signed release.
-# Do not create a duplicate APK release in N2K02/n2k02.github.io.
+# Publish signed APKs from this private source repository to the public website.
 set -euo pipefail
 
 PUBLIC_REPO="N2K02/n2k02.github.io"
@@ -22,26 +21,40 @@ APK="$APK_BASE.apk"
 test -s "$APK"
 
 CHANNEL="stable"
-SOURCE_TAG="v$VERSION"
 VERSION_NAME="$VERSION"
+PUBLIC_TAG="$SLUG-v$VERSION-build-$GITHUB_RUN_NUMBER"
 MANIFEST="$SLUG/updates/stable.json"
+RELEASE_FLAGS=(--latest)
 if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
   : "${PR_NUMBER:?PR_NUMBER must be set for experimental publishing}"
   CHANNEL="experimental"
-  SOURCE_TAG="experimental-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
   VERSION_NAME="$VERSION-experimental.$GITHUB_RUN_NUMBER"
+  if [[ "$SLUG" == "chargewatt" ]]; then
+    PUBLIC_TAG="$SLUG-exp-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
+  else
+    PUBLIC_TAG="$SLUG-experimental-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
+  fi
   MANIFEST="$SLUG/updates/experimental.json"
+  RELEASE_FLAGS=(--prerelease --latest=false)
 fi
 
 SHA=$(sha256sum "$APK" | cut -d' ' -f1)
 SIZE=$(stat -c '%s' "$APK")
-APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$SOURCE_TAG/$APK"
-PAGE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$SOURCE_TAG"
 NOTES=$( { grep '^- ' release-notes.md || true; } | head -10 | sed 's/^- //' | jq -R -s 'split("\n") | map(select(length > 0))')
+APK_URL="https://github.com/$PUBLIC_REPO/releases/download/$PUBLIC_TAG/$APK"
+PAGE_URL="https://github.com/$PUBLIC_REPO/releases/tag/$PUBLIC_TAG"
+
+# Keep the APK downloadable without GitHub access to this private source repo.
+if gh release view "$PUBLIC_TAG" --repo "$PUBLIC_REPO" >/dev/null 2>&1; then
+  gh release upload "$PUBLIC_TAG" "$APK" --repo "$PUBLIC_REPO" --clobber
+else
+  gh release create "$PUBLIC_TAG" "$APK" --repo "$PUBLIC_REPO" --target main \
+    --title "$APP_LABEL $VERSION ($CHANNEL)" --notes-file release-notes.md "${RELEASE_FLAGS[@]}"
+fi
 
 jq -n \
   --arg channel "$CHANNEL" \
-  --arg tag "$SOURCE_TAG" \
+  --arg tag "$PUBLIC_TAG" \
   --arg versionName "$VERSION_NAME" \
   --arg apkName "$APK" \
   --arg apkUrl "$APK_URL" \
@@ -67,17 +80,17 @@ for attempt in 1 2 3 4 5; do
     fi
     if (( OLD_CODE == VERSION_CODE )) &&
        [[ "$(jq -r '.apkUrl // empty' <<<"$CURRENT_JSON" 2>/dev/null || true)" == "$APK_URL" ]]; then
-      echo "The $CHANNEL feed already points to this source APK; nothing to update."
+      echo "The $CHANNEL feed already points to this public APK; nothing to update."
       exit 0
     fi
   fi
 
   ARGS=(--method PUT "repos/$PUBLIC_REPO/contents/$MANIFEST"
-    -f "message=Point $APP_LABEL $VERSION ($CHANNEL) feed to source release"
+    -f "message=Publish public $APP_LABEL $VERSION ($CHANNEL) APK feed"
     -f "content=$CONTENT" -f "branch=main")
   [[ -z "$CURRENT_SHA" ]] || ARGS+=(-f "sha=$CURRENT_SHA")
   if gh api "${ARGS[@]}" >/dev/null; then
-    echo "Updated $MANIFEST to use $APK_URL"
+    echo "Published $CHANNEL feed for $APP_LABEL using $APK_URL"
     exit 0
   fi
 
