@@ -20,7 +20,7 @@
         android:gravity="center"
         android:background="@drawable/widget_source_badge_dark"
         android:text="Wireless Qi"
-        android:textColor="#C7A9FC"
+        android:textColor="#5BF19C"
         android:fontFamily="sans-serif-condensed"
         android:textStyle="bold"
         android:textSize="10sp"

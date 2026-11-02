@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
+import android.provider.Settings
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
@@ -66,6 +68,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         WidgetPollingActivityState.resumed = true
         ChargeWattUpdater.onResume(this)
+        // If the user has just granted overlay permission, start the meter and
+        // reuse the ordinary polling service. No notification is posted.
+        if (!WidgetRunState.isPaused(this) && ChargeWattSettings.overlayEnabled(this) &&
+            Settings.canDrawOverlays(this) && ChargeOverlay.start(this)) {
+            WidgetPollingService.startWhileVisible(this)
+        }
     }
     override fun onPause() {
         WidgetPollingActivityState.resumed = false
@@ -125,6 +133,7 @@ class MainActivity : ComponentActivity() {
                 onQuit = {
                     WidgetRunState.setPaused(this, true)
                     WidgetPollingService.stop(this)
+                    ChargeOverlay.stop()
                     try {
                         WidgetUpdater.cancelFallback(this)
                     } catch (e: RuntimeException) {
@@ -197,6 +206,9 @@ private fun ChargeWattScreen(
     var interval by remember { mutableIntStateOf(ChargeWattSettings.interval(context)) }
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
+    var overlayEnabled by remember { mutableStateOf(ChargeWattSettings.overlayEnabled(context)) }
+    val overlayPermissionGranted = Settings.canDrawOverlays(context)
+
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
     val navigationColors = NavigationBarItemDefaults.colors(
@@ -342,6 +354,49 @@ private fun ChargeWattScreen(
                                     )
                                 }
                                 HorizontalDivider()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Floating meter", style = MaterialTheme.typography.titleMedium)
+                                        Text(
+                                            "Movable display over other apps. Uses the same 1–10s battery samples without notifications.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(checked = overlayEnabled, onCheckedChange = { enabled ->
+                                        overlayEnabled = enabled
+                                        ChargeWattSettings.setOverlayEnabled(context, enabled)
+                                        if (enabled) {
+                                            if (Settings.canDrawOverlays(context)) {
+                                                ChargeOverlay.start(context)
+                                                WidgetPollingService.startWhileVisible(context)
+                                                onRefresh()
+                                            } else {
+                                                context.startActivity(
+                                                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                        Uri.parse("package:${context.packageName}"))
+                                                )
+                                            }
+                                        } else {
+                                            ChargeOverlay.stop()
+                                            if (WidgetUpdater.widgetIds(context).isEmpty()) {
+                                                WidgetPollingService.stop(context)
+                                            }
+                                        }
+                                    })
+                                }
+                                if (overlayEnabled && !overlayPermissionGranted) {
+                                    Text(
+                                        "Allow Display over other apps for chargeWatt, then return here. Android may still stop notification-free background updates.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = ChargeWattPalette.Discharging
+                                    )
+                                }
+                                HorizontalDivider()
                                 Text("Primary speed unit", style = MaterialTheme.typography.titleMedium)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     FilterChip(selected = unit == "W", onClick = {
@@ -367,7 +422,7 @@ private fun ChargeWattScreen(
                                     Text("10 sec", style = MaterialTheme.typography.labelSmall)
                                 }
                                 Text(
-                                    "1–10s while the app is open or Android allows the notification-free background service to run. Android may stop that service; charging events and periodic background work remain as fallbacks.",
+                                    "1–10s while the app is open or the optional floating meter/background service is allowed to run. Android may stop notification-free services; charging events and periodic widget work remain as fallbacks.",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }

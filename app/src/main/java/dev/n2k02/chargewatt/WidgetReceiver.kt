@@ -174,10 +174,13 @@ object WidgetUpdater {
     @Synchronized fun refresh(context: Context, reading: BatteryReading? = null, force: Boolean = false) {
         if (WidgetRunState.isPaused(context)) return
         val ids = widgetIds(context)
-        if (ids.isEmpty()) return // No widget => no battery-system call.
-        val value = reading ?: BatterySampler.read(context)
-        val theme = ChargeWattSettings.theme(context)
+        if (ids.isEmpty() && !ChargeOverlay.isRunning) return // No visible meter: no battery-system call.
+        val value = reading ?: BatterySampler.read(context, freshSnapshot = force)
         val unit = ChargeWattSettings.unit(context)
+        // Both displays share one sample; overlay has no separate polling loop.
+        ChargeOverlay.render(value, unit)
+        if (ids.isEmpty()) return
+        val theme = ChargeWattSettings.theme(context)
         val fingerprint = value.fingerprint(unit, theme)
         val now = SystemClock.elapsedRealtime()
         val full = mutableListOf<Int>()
@@ -208,8 +211,7 @@ object WidgetUpdater {
         views.setTextColor(R.id.widget_value,
             context.getColor(if (draining) R.color.chargewatt_discharging else R.color.chargewatt_charging))
         views.setTextColor(R.id.widget_status,
-            context.getColor(if (value.source == PowerSource.WIRELESS) R.color.chargewatt_purple
-                else R.color.chargewatt_charging))
+            context.getColor(R.color.chargewatt_charging))
         // Keep source independent of the signed battery-side wattage.
         views.setTextViewText(R.id.widget_status, WidgetTextPolicy.chargerBadge(value))
         views.setContentDescription(

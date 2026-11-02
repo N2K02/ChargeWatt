@@ -7,6 +7,7 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 - Shows charging (green) and discharging (amber) automatically, including wireless Qi charging. Current sign comes from BatteryManager, so a connected charger with net drain is correctly displayed as negative.
 - Shows battery-side watts (W), current (mA), voltage (V), and battery percentage.
 - Dark or transparent widget themes.
+- Optional draggable glass power overlay (Settings → Widget display → Floating meter), reusing the same battery samples. Requires Android's Display over other apps permission; no notification.
 - Choose W or mA as the main value.
 - User-selectable refresh 1–10 seconds, default 2 seconds.
 - One consistent mRadio-style header above the status bar, Home, Settings (Widget display, Battery details, About & updates), and Quit. Settings uses compact icon-aligned ListItem rows; Android Back returns from each submenu.
@@ -15,7 +16,7 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 
 ## Important timing and measurement limits
 
-The 1-second interval is implemented when the dashboard is resumed. The UI lifecycle cancels polling when the screen is paused; only value changes cause RemoteViews widget redraw. In the background, Android cannot guarantee second-by-second widget updates without a foreground-running service. The widget is updated by a WorkManager periodic fallback (minimum 15 minutes). The launcher may delay those updates.
+The 1-second interval is implemented when the dashboard is resumed. The UI lifecycle cancels polling when the screen is paused; only value changes cause RemoteViews widget redraw. In the background, Android cannot guarantee second-by-second widget updates without a foreground-running service. An optional visible floating meter improves process priority but does not override Android background restrictions; power-change broadcasts and WorkManager remain fallbacks. The widget is updated by a WorkManager periodic fallback (minimum 15 minutes). The launcher may delay those updates.
 
 Watts = signed battery current in microamperes multiplied by battery voltage in millivolts, divided by 1,000,000,000. Current direction determines the sign. This is **battery-side power**, not the power delivered by the wall charger, USB brick, or Qi pad. Unsupported battery current reports as unavailable rather than a fake value.
 
@@ -64,3 +65,9 @@ Both pages share a single statically drawn glass battery hero, a progress ring, 
 
 ## Compact widget design update
 The 1×1 widget no longer shows a battery-percent pill. A full-width charging-source badge displays **Wireless Qi**, **AC charging**, **USB charging**, **On battery**, or **Source unknown**, independently of net current direction. The three battery-side measurements now all use the same bold condensed 14sp font with matching auto-size bounds. The two widget themes retain their glass treatment; no animations or background service were introduced. **Foreground refresh defaults to 2 seconds**, configurable from 1 to 10 seconds; an explicitly saved interval is retained. Quit uses the same rounded PowerSettingsNew icon as mRadio.
+
+## Optional floating overlay and power transitions
+
+In Widget display, enable **Floating meter** and grant Android’s Display over other apps permission. The draggable overlay shows the same charger badge, watts/current and voltage as the home widget. It is off by default, uses the same 1–10 second samples (2 seconds by default), never runs another polling loop, and posts no notification. Android may still stop the ordinary background service, especially during idle or battery restrictions; the home widget is not guaranteed to refresh every two seconds after that. Turn off the switch or use Quit to remove the overlay immediately.
+
+On USB power connect/disconnect, the receiver requests forced widget refreshes from new sticky battery snapshots rather than a cached activity broadcast, with delayed rereads to catch asynchronous power-state changes. The Wireless Qi badge text now uses charging green (#5BF19C) in both widget themes and the runtime update path.
