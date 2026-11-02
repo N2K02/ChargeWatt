@@ -8,7 +8,7 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 - Shows battery-side watts (W), current (mA), voltage (V), and battery percentage.
 - Dark or transparent widget themes.
 - Choose W or mA as the main value.
-- User-selectable refresh 1–10 seconds, default 1 second.
+- User-selectable refresh 1–10 seconds, default 2 seconds.
 - One consistent mRadio-style header above the status bar, Home, Settings (Widget display, Battery details, About & updates), and Quit. Settings uses compact icon-aligned ListItem rows; Android Back returns from each submenu.
 - No notifications, notification permission, foreground service, wake locks, continuous animation, or network telemetry.
 - Android 8+ (minSdk 26), Android 17 compile/target API 37.
@@ -61,3 +61,6 @@ CI publishes the same release-signed APK to the public `N2K02/n2k02.github.io` G
 
 ## Home, Battery details, and compact widget redesign
 Both pages share a single statically drawn glass battery hero, a progress ring, and green/amber state colors. Home displays four compact status cards and one clear details action. Details shows grouped electrical metrics and a four-row battery information card. Both keep the canonical mRadio header and bottom navigation, use the shared Material 3 Expressive theme, and add no notifications, services, animations, or in-app logs. Launcher icon and widget use matching green #5BF19C, amber #FFB443, cyan #9BD6DE and purple #C7A9FC. To avoid clipping in 1×1 cells, current >=1000mA uses A (−1331mA→−1.33A) for both primary and secondary widget readings.
+
+## Compact widget design update
+The 1×1 widget no longer shows a battery-percent pill. A full-width charging-source badge displays **Wireless Qi**, **AC charging**, **USB charging**, **On battery**, or **Source unknown**, independently of net current direction. The three battery-side measurements now all use the same bold condensed 14sp font with matching auto-size bounds. The two widget themes retain their glass treatment; no animations or background service were introduced. **Foreground refresh defaults to 2 seconds**, configurable from 1 to 10 seconds; an explicitly saved interval is retained. Quit uses the same rounded PowerSettingsNew icon as mRadio.

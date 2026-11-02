@@ -21,7 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -275,7 +275,7 @@ private fun ChargeWattScreen(
                     )
                     NavigationBarItem(
                         selected = false, onClick = onQuit,
-                        icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
+                        icon = { Icon(Icons.Rounded.PowerSettingsNew, contentDescription = "Quit chargeWatt") },
                         label = { Text("Quit") }
                     )
                         }

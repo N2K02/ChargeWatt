@@ -5,7 +5,7 @@ import org.junit.Test
 
 class BatteryMathTest {
     @Test fun defaultAndBounds() {
-        assertEquals(1, BatteryMath.DEFAULT_REFRESH_SECONDS)
+        assertEquals(2, BatteryMath.DEFAULT_REFRESH_SECONDS)
         assertEquals(1, BatteryMath.refreshSeconds(-5))
         assertEquals(1, BatteryMath.refreshSeconds(1))
         assertEquals(5, BatteryMath.refreshSeconds(5))
@@ -95,6 +95,24 @@ class BatteryMathTest {
         assertEquals("Wireless Qi", plugged.powerSourceText)
         assertEquals("−1.36W", WidgetTextPolicy.primary(plugged, "W"))
         assertEquals("−350mA", WidgetTextPolicy.primary(plugged, "mA"))
+    }
+    @Test fun readableSourceBadgeAndCompactVoltage() {
+        val chargingQi = example(ChargeMode.CHARGING).copy(
+            source = PowerSource.WIRELESS, currentMa = 1270.0)
+        assertEquals("Wireless Qi", WidgetTextPolicy.chargerBadge(chargingQi))
+        assertEquals("Wireless Qi", WidgetTextPolicy.chargerBadge(
+            chargingQi.copy(currentMa = -200.0, mode = ChargeMode.DISCHARGING)))
+        assertEquals("AC charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.AC)))
+        assertEquals("USB charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.USB)))
+        assertEquals("On battery", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.BATTERY)))
+        assertEquals("Source unknown", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.UNKNOWN)))
+        assertEquals("3.94V", WidgetTextPolicy.voltage(3.94))
+        assertEquals("—V", WidgetTextPolicy.voltage(null))
+    }
+    @Test fun batteryLevelChangeDoesNotTriggerInvisibleWidgetUpdate() {
+        val first = example(ChargeMode.CHARGING)
+        assertEquals(first.fingerprint("W", "dark"),
+            first.copy(level = 70).fingerprint("W", "dark"))
     }
     @Test fun currentAbbreviationPreventsFourDigitClipping() {
         assertEquals("−1.33A", WidgetTextPolicy.current(-1331.0))

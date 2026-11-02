@@ -96,6 +96,19 @@ object WidgetTextPolicy {
         val pattern = if (magnitude >= 100.0) "%.0fW" else if (magnitude >= 10.0) "%.1fW" else "%.2fW"
         return sign + String.format(java.util.Locale.US, pattern, magnitude)
     }
+    fun voltage(voltageV: Double?): String =
+        if (voltageV == null || !voltageV.isFinite()) "—V"
+        else String.format(java.util.Locale.US, "%.2fV", voltageV)
+
+    /** Always show the actual power-source type, never infer it from current direction. */
+    fun chargerBadge(reading: BatteryReading): String = when (reading.source) {
+        PowerSource.WIRELESS -> "Wireless Qi"
+        PowerSource.AC -> "AC charging"
+        PowerSource.USB -> "USB charging"
+        PowerSource.BATTERY -> "On battery"
+        PowerSource.UNKNOWN -> "Source unknown"
+    }
+
     fun primary(reading: BatteryReading, unit: String): String =
         if (unit == "mA") current(reading.currentMa) else power(reading.powerW)
     fun secondary(reading: BatteryReading, unit: String): String =
@@ -185,8 +198,7 @@ object WidgetUpdater {
         val views = RemoteViews(context.packageName, layout)
         views.setTextViewText(R.id.widget_value, WidgetTextPolicy.primary(value, unit))
         views.setTextViewText(R.id.widget_sub, WidgetTextPolicy.secondary(value, unit))
-        views.setTextViewText(R.id.widget_voltage, value.voltageText)
-        views.setTextViewText(R.id.widget_level, value.levelText)
+        views.setTextViewText(R.id.widget_voltage, WidgetTextPolicy.voltage(value.voltageV))
         val draining = when {
             value.currentMa != null -> value.currentMa < 0.0
             else -> value.mode == ChargeMode.DISCHARGING
@@ -198,20 +210,11 @@ object WidgetUpdater {
         views.setTextColor(R.id.widget_status,
             context.getColor(if (value.source == PowerSource.WIRELESS) R.color.chargewatt_purple
                 else R.color.chargewatt_charging))
-        // Plug type and battery net-current direction are different properties.
-        // Show Qi as Qi even if the battery momentarily discharges on the pad.
-        views.setTextViewText(R.id.widget_status, when (value.source) {
-            PowerSource.WIRELESS -> "Qi"
-            PowerSource.AC, PowerSource.USB -> "⚡"
-            else -> if (draining) "↓" else "•"
-        })
-        views.setTextViewTextSize(
-            R.id.widget_status, android.util.TypedValue.COMPLEX_UNIT_SP,
-            if (value.source == PowerSource.WIRELESS) 10f else 17f
-        )
+        // Keep source independent of the signed battery-side wattage.
+        views.setTextViewText(R.id.widget_status, WidgetTextPolicy.chargerBadge(value))
         views.setContentDescription(
             R.id.widget_root,
-            "${value.statusText}, ${value.levelText}, ${value.signedWatts}, " +
+            "${WidgetTextPolicy.chargerBadge(value)}, ${value.statusText}, ${value.signedWatts}, " +
                 "${value.signedCurrent}, ${value.voltageText}"
         )
         val open = Intent(context, MainActivity::class.java)

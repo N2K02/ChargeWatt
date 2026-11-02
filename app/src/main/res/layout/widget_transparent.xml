@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 1x1 battery-side power widget. No blur engine, bitmaps or animations. -->
+<!-- Compact Pixel 1x1: no percentage; uniform current, power and voltage fonts. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -7,102 +7,87 @@
     android:orientation="vertical"
     android:gravity="center"
     android:background="@drawable/widget_bg_transparent"
-    android:paddingStart="4dp"
-    android:paddingEnd="4dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:paddingStart="5dp"
+    android:paddingEnd="5dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp">
 
-    <!-- Frosted-glass header: circular activity badge + level pill -->
-    <LinearLayout
+    <!-- Full-width charging type pill instead of cramped icon + battery chip. -->
+    <TextView
+        android:id="@+id/widget_status"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingBottom="2dp">
+        android:layout_height="23dp"
+        android:gravity="center"
+        android:background="@drawable/widget_source_badge_transparent"
+        android:text="Wireless Qi"
+        android:textColor="#C7A9FC"
+        android:fontFamily="sans-serif-condensed"
+        android:textStyle="bold"
+        android:textSize="12sp"
+        android:paddingStart="5dp"
+        android:paddingEnd="5dp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="9sp"
+        android:autoSizeMaxTextSize="12sp"
+        android:autoSizeStepGranularity="1sp"/>
 
-        <TextView
-            android:id="@+id/widget_status"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:background="@drawable/widget_status_circle"
-            android:gravity="center"
-            android:text="↓"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            android:textColor="#50F0A2"
-            android:includeFontPadding="false"/>
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="1dp"/>
-
-        <TextView
-            android:id="@+id/widget_level"
-            android:layout_width="wrap_content"
-            android:layout_height="20dp"
-            android:minWidth="33dp"
-            android:gravity="center"
-            android:background="@drawable/widget_chip_transparent"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
-            android:text="20%"
-            android:textColor="#FAFAFF"
-            android:fontFamily="sans-serif-condensed"
-            android:textStyle="bold"
-            android:textSize="12sp"
-            android:includeFontPadding="false"/>
-    </LinearLayout>
-
-    <!-- Large single-line power/current headline; auto-shrinks on narrow 1x1 grids -->
     <TextView
         android:id="@+id/widget_value"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="20dp"
+        android:layout_marginTop="4dp"
         android:gravity="center"
         android:text="−1.33A"
         android:textColor="#FFB443"
         android:fontFamily="sans-serif-condensed"
         android:textStyle="bold"
-        android:textSize="18sp"
+        android:textSize="14sp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
         android:autoSizeTextType="uniform"
         android:autoSizeMinTextSize="10sp"
-        android:autoSizeMaxTextSize="18sp"
+        android:autoSizeMaxTextSize="14sp"
         android:autoSizeStepGranularity="1sp"/>
 
     <TextView
         android:id="@+id/widget_sub"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:gravity="center"
-        android:layout_marginTop="1dp"
         android:text="−5.28W"
         android:textColor="#F7F7F9"
         android:fontFamily="sans-serif-condensed"
-        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textSize="14sp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
         android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="8sp"
-        android:autoSizeMaxTextSize="12sp"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="14sp"
         android:autoSizeStepGranularity="1sp"/>
 
     <TextView
         android:id="@+id/widget_voltage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:gravity="center"
-        android:layout_marginTop="1dp"
-        android:text="3.67 V"
+        android:text="4.34V"
         android:textColor="#9BD6DE"
         android:fontFamily="sans-serif-condensed"
-        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textSize="14sp"
         android:includeFontPadding="false"
         android:singleLine="true"
-        android:ellipsize="end"/>
+        android:ellipsize="end"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"/>
 </LinearLayout>

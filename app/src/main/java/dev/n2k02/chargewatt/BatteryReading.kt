@@ -58,11 +58,11 @@ data class BatteryReading(
     fun sameContent(other: BatteryReading): Boolean =
         copy(sampledAtMs = 0L) == other.copy(sampledAtMs = 0L)
     fun fingerprint(unit: String, theme: String): String =
-        listOf(mode, source, levelText, signedWatts, signedCurrent, voltageText, theme, unit).joinToString("|")
+        listOf(mode, source, signedWatts, signedCurrent, voltageText, theme, unit).joinToString("|")
 }
 
 object BatteryMath {
-    const val DEFAULT_REFRESH_SECONDS = 1
+    const val DEFAULT_REFRESH_SECONDS = 2
     fun refreshSeconds(requested: Int): Int = requested.coerceIn(1, 10)
     fun watts(currentMicroAmps: Int?, voltageMilliVolts: Int?): Double? {
         if (currentMicroAmps == null || voltageMilliVolts == null) return null
