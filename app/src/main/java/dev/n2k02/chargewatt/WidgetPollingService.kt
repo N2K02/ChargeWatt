@@ -92,7 +92,13 @@ class WidgetPollingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (WidgetRunState.isPaused(this) || WidgetUpdater.widgetIds(this).isEmpty()) {
+        if (WidgetRunState.isPaused(this)) {
+            ChargeOverlay.stop()
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        ChargeOverlay.start(this)
+        if (WidgetUpdater.widgetIds(this).isEmpty() && !ChargeOverlay.isRunning) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -100,7 +106,7 @@ class WidgetPollingService : Service() {
             polling = scope.launch {
                 while (isActive) {
                     if (WidgetRunState.isPaused(applicationContext) ||
-                        WidgetUpdater.widgetIds(applicationContext).isEmpty()) {
+                        (WidgetUpdater.widgetIds(applicationContext).isEmpty() && !ChargeOverlay.isRunning)) {
                         stopSelf()
                         break
                     }
@@ -129,6 +135,7 @@ class WidgetPollingService : Service() {
             receiverRegistered = false
         }
         scope.cancel()
+        ChargeOverlay.stop()
         polling = null
         pendingPowerRefresh = null
         super.onDestroy()
@@ -139,7 +146,7 @@ class WidgetPollingService : Service() {
 
         /** Must be called from a visible Activity, not from a background receiver. */
         fun startWhileVisible(context: Context) {
-            if (WidgetRunState.isPaused(context) || WidgetUpdater.widgetIds(context).isEmpty()) return
+            if (WidgetRunState.isPaused(context) || (WidgetUpdater.widgetIds(context).isEmpty() && !ChargeOverlay.isRunning)) return
             try {
                 context.startService(Intent(context, WidgetPollingService::class.java))
             } catch (error: RuntimeException) {
@@ -148,6 +155,7 @@ class WidgetPollingService : Service() {
         }
 
         fun stop(context: Context) {
+            ChargeOverlay.stop()
             try {
                 context.stopService(Intent(context, WidgetPollingService::class.java))
             } catch (error: RuntimeException) {
