@@ -85,6 +85,8 @@ class BatteryMathTest {
             currentMa = -350.0, powerW = -1.36, source = PowerSource.WIRELESS
         )
         assertEquals("Wireless Qi · net battery drain", plugged.statusText)
+        assertEquals("Wireless Qi · net battery drain",
+            plugged.copy(mode = ChargeMode.DISCHARGING).statusText)
         assertEquals("Wireless Qi", plugged.powerSourceText)
         assertEquals("−1.36W", WidgetTextPolicy.primary(plugged, "W"))
         assertEquals("−350mA", WidgetTextPolicy.primary(plugged, "mA"))

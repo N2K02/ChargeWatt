@@ -53,9 +53,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Bg = Color(0xFF0F1415)
-private val CardBg = Color(0xFF1B2426)
-private val Green = Color(0xFF64EE94)
 private val Amber = Color(0xFFFFB74B)
 
 class MainActivity : ComponentActivity() {
@@ -195,8 +192,11 @@ private fun ChargeWattScreen(
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
-    val accent = if (reading?.currentMa?.let { it < 0 } == true ||
-        (reading?.currentMa == null && reading?.mode == ChargeMode.DISCHARGING)) Amber else Green
+    val draining = reading?.currentMa?.let { it < 0 } == true ||
+        (reading?.currentMa == null && reading?.mode == ChargeMode.DISCHARGING)
+    val accent = if (draining) {
+        if (androidx.compose.foundation.isSystemInDarkTheme()) Amber else Color(0xFF925000)
+    } else MaterialTheme.colorScheme.primary
     // Same shared Material 3 Expressive theme as mRadio (setContent wrapper).
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
@@ -311,8 +311,8 @@ private fun ChargeWattScreen(
                                     style = MaterialTheme.typography.titleLarge
                                 )
                                 Text((reading?.levelText ?: "—%") + "  ·  " + (reading?.voltageText ?: "— V"),
-                                    color = Color.LightGray)
-                                Text("Battery-side measurements", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Battery-side measurements", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -328,7 +328,7 @@ private fun ChargeWattScreen(
                         }
                         Text(
                             "Foreground refresh every " + interval + "s. Android controls background updates. No notification or foreground service.",
-                            style = MaterialTheme.typography.bodySmall, color = Color.LightGray
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     "Settings" -> {
@@ -397,7 +397,7 @@ private fun ChargeWattScreen(
                                 }
                                 Text(
                                     "1–10s applies while this screen is active. A widget cannot update each second reliably in the background without a foreground-running component.",
-                                    style = MaterialTheme.typography.bodySmall, color = Color.LightGray
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -414,7 +414,7 @@ private fun ChargeWattScreen(
                         DetailRow("Cycle count", reading?.cycleCount?.toString() ?: "Not available")
                         Text(
                             "Device-reported battery-side power, not wall-adapter input power.",
-                            color = Color.LightGray, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
@@ -433,7 +433,7 @@ private fun ChargeWattScreen(
 
 @Composable
 private fun SectionLabel(value: String) {
-    Text(value, color = Green, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+    Text(value, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 }
 @Composable
 private fun ValueTile(label: String, value: String, modifier: Modifier = Modifier) {
@@ -443,7 +443,7 @@ private fun ValueTile(label: String, value: String, modifier: Modifier = Modifie
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = Color.LightGray)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
     }

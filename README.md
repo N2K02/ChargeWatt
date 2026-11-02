@@ -55,3 +55,6 @@ The 1×1 widget has an in-place lightweight glass UI: a static translucent round
 
 ## Expressive theme and Qi state
 The app wraps the complete screen in `N2K02Theme` (from the pinned 0.1.4 package), using Material 3 Expressive motion/shapes and system dynamic colors, as mRadio does. Battery current sign is preserved and never misrepresented as charger input power. When Android reports Wireless Qi attached, the widget badge displays **Qi**, even when the net battery current remains negative; the signed wattage and the dashboard explicitly state net battery drain. The 1×1 widget uses narrow, condensed, auto-sized text with shorter unit formatting to avoid Pixel 8 Pro clipping.
+
+## Public update publishing (matches mRadio)
+CI publishes the same release-signed APK to the public `N2K02/n2k02.github.io` GitHub Releases repository and writes `chargewatt/updates/stable.json` or `chargewatt/updates/experimental.json`, including the exact APK SHA-256 and monotonic versionCode. This requires the **ANDROID_DISTRIBUTION_TOKEN** GitHub Actions secret with public distribution repository write permission. If that secret is missing, the workflow warns and keeps the signed APK as a chargeWatt release artifact, but full experimental in-app updates remain unavailable until the token is configured. The APK does not contain a GitHub credential.
