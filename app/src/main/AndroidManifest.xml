@@ -11,6 +11,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Notification-free best-effort monitoring. Android may stop this background service. -->
+        <service android:name=".WidgetPollingService" android:exported="false" />
         <receiver android:name=".PowerConnectionReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
