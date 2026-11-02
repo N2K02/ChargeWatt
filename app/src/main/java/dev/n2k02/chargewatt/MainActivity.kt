@@ -64,10 +64,18 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        WidgetPollingActivityState.resumed = true
         ChargeWattUpdater.onResume(this)
+    }
+    override fun onPause() {
+        WidgetPollingActivityState.resumed = false
+        super.onPause()
     }
     override fun onStart() {
         super.onStart()
+        // Start only while the Activity is visible; Android may stop the
+        // ordinary service after the app goes idle. No notification is posted.
+        WidgetPollingService.startWhileVisible(this)
         // Sticky battery broadcasts are best effort. Registration failure must
         // not terminate the Activity; the sampler can query a snapshot instead.
         try {
@@ -116,6 +124,7 @@ class MainActivity : ComponentActivity() {
                 },
                 onQuit = {
                     WidgetRunState.setPaused(this, true)
+                    WidgetPollingService.stop(this)
                     try {
                         WidgetUpdater.cancelFallback(this)
                     } catch (e: RuntimeException) {
@@ -343,7 +352,7 @@ private fun ChargeWattScreen(
                                     }, label = { Text("Current (mA)") })
                                 }
                                 HorizontalDivider()
-                                Text("Foreground refresh · " + interval + " second" + if (interval == 1) "" else "s",
+                                Text("Widget refresh · " + interval + " second" + if (interval == 1) "" else "s",
                                     style = MaterialTheme.typography.titleMedium)
                                 Slider(
                                     value = interval.toFloat(),
@@ -358,7 +367,7 @@ private fun ChargeWattScreen(
                                     Text("10 sec", style = MaterialTheme.typography.labelSmall)
                                 }
                                 Text(
-                                    "1–10s applies while this screen is active. A widget cannot update each second reliably in the background without a foreground-running component.",
+                                    "1–10s while the app is open or Android allows the notification-free background service to run. Android may stop that service; charging events and periodic background work remain as fallbacks.",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
