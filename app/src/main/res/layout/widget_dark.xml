@@ -23,15 +23,15 @@
         android:textColor="#C7A9FC"
         android:fontFamily="sans-serif-condensed"
         android:textStyle="bold"
-        android:textSize="12sp"
-        android:paddingStart="5dp"
-        android:paddingEnd="5dp"
+        android:textSize="10sp"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
         android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="9sp"
-        android:autoSizeMaxTextSize="12sp"
+        android:autoSizeMinTextSize="8sp"
+        android:autoSizeMaxTextSize="10sp"
         android:autoSizeStepGranularity="1sp"/>
 
     <TextView
