@@ -24,6 +24,15 @@ class PowerConnectionReceiver : BroadcastReceiver() {
                     // activity's cached ACTION_BATTERY_CHANGED intent.
                     BatterySampler.clear()
                     WidgetUpdater.refresh(appContext, force = true)
+                    // Power events may precede the updated battery snapshot.
+                    for (attempt in 0 until 2) {
+                        Thread.sleep(1_500L)
+                        if (WidgetRunState.isPaused(appContext)) break
+                        BatterySampler.clear()
+                        WidgetUpdater.refresh(appContext, force = true)
+                    }
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
                 } catch (error: Exception) {
                     Log.e("chargeWatt", "Power connection widget refresh failed", error)
                 } finally {
