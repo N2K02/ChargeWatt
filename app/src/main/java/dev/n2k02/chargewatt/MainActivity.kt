@@ -190,6 +190,11 @@ private fun ChargeWattScreen(
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
+    val navigationColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = ChargeWattPalette.Charging,
+        selectedTextColor = ChargeWattPalette.Charging,
+        indicatorColor = ChargeWattPalette.Charging.copy(alpha = .17f)
+    )
     // Same shared Material 3 Expressive theme as mRadio (setContent wrapper).
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
@@ -212,7 +217,7 @@ private fun ChargeWattScreen(
                                     "Updates" -> Icons.Default.SystemUpdate
                                     else -> Icons.Default.Home
                                 },
-                                contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                                contentDescription = null, tint = ChargeWattPalette.Charging,
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
@@ -254,7 +259,8 @@ private fun ChargeWattScreen(
                         selected = page == "Home",
                         onClick = { page = "Home" },
                         icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                        label = { Text("Home") }
+                        label = { Text("Home") },
+                        colors = navigationColors
                     )
                     NavigationBarItem(
                         selected = page != "Home",
@@ -264,7 +270,8 @@ private fun ChargeWattScreen(
                                 Icon(Icons.Default.Settings, contentDescription = "Settings")
                             }
                         },
-                        label = { Text("Settings") }
+                        label = { Text("Settings") },
+                        colors = navigationColors
                     )
                     NavigationBarItem(
                         selected = false, onClick = onQuit,
