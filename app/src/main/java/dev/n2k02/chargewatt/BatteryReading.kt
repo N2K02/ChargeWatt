@@ -62,7 +62,7 @@ data class BatteryReading(
 }
 
 object BatteryMath {
-    const val DEFAULT_REFRESH_SECONDS = 2
+    const val DEFAULT_REFRESH_SECONDS = 1
     fun refreshSeconds(requested: Int): Int = requested.coerceIn(1, 10)
     fun watts(currentMicroAmps: Int?, voltageMilliVolts: Int?): Double? {
         if (currentMicroAmps == null || voltageMilliVolts == null) return null
