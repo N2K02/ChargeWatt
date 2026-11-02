@@ -18,10 +18,10 @@ class PerformanceContractTest {
         assertFalse(manifest.contains("WAKE_LOCK"))
         assertFalse(manifest.contains("<service"))
     }
-    @Test fun noPowerChangeManifestWakeups() {
+    @Test fun powerEventsOnlyWakeOnConnectionChanges() {
         val manifest = read("AndroidManifest.xml")
-        assertFalse(manifest.contains("ACTION_POWER_CONNECTED"))
-        assertFalse(manifest.contains("ACTION_POWER_DISCONNECTED"))
+        assertTrue(manifest.contains("ACTION_POWER_CONNECTED"))
+        assertTrue(manifest.contains("ACTION_POWER_DISCONNECTED"))
         assertFalse(manifest.contains("BOOT_COMPLETED"))
     }
     @Test fun widgetCodeAvoidsOneHertzDiskWritesAndAlwaysOnJobs() {
