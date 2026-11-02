@@ -87,6 +87,11 @@ class BatteryMathTest {
         assertEquals("Wireless Qi · net battery drain", plugged.statusText)
         assertEquals("Wireless Qi · net battery drain",
             plugged.copy(mode = ChargeMode.DISCHARGING).statusText)
+        assertEquals("Wireless Qi", plugged.copy(currentMa = 350.0,
+            powerW = 1.36, mode = ChargeMode.CHARGING).statusText)
+        assertEquals(PowerSource.WIRELESS,
+            BatteryMath.source(android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS or
+                android.os.BatteryManager.BATTERY_PLUGGED_USB))
         assertEquals("Wireless Qi", plugged.powerSourceText)
         assertEquals("−1.36W", WidgetTextPolicy.primary(plugged, "W"))
         assertEquals("−350mA", WidgetTextPolicy.primary(plugged, "mA"))
