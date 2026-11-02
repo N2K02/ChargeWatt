@@ -21,14 +21,14 @@ if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
   NAME="${VERSION}-experimental.${GITHUB_RUN_NUMBER}"
   TITLE="chargeWatt experimental · PR #${PR_NUMBER} · build #${GITHUB_RUN_NUMBER}"
   GH_FLAGS=(--prerelease --latest=false)
-  NOTES="Experimental test APK. Not intended for general download."
+  NOTES="$(cat release-notes.md)"
 else
   CHANNEL="stable"
   TAG="chargewatt-v${VERSION}-build-${GITHUB_RUN_NUMBER}"
   NAME="${VERSION}"
   TITLE="chargeWatt ${VERSION}"
   GH_FLAGS=(--latest)
-  NOTES="Stable chargeWatt release $VERSION"
+  NOTES="$(cat release-notes.md)"
 fi
 
 # A public *website* repository contains no Android source files.
@@ -42,7 +42,7 @@ fi
 
 URL="https://github.com/$PUBLIC_REPO/releases/download/$TAG/$APK"
 PAGE_URL="https://github.com/$PUBLIC_REPO/releases/tag/$TAG"
-NOTES_JSON=$(printf '%s\n' "$NOTES" | jq -R -s 'split("\n") | map(select(length > 0))')
+NOTES_JSON=$(grep '^\\- ' release-notes.md | head -30 | sed 's/^- //' | jq -R -s 'split("\\n") | map(select(length > 0))')
 jq -n \
   --arg channel "$CHANNEL" \
   --arg tag "$TAG" \
