@@ -42,7 +42,7 @@ fi
 
 URL="https://github.com/$PUBLIC_REPO/releases/download/$TAG/$APK"
 PAGE_URL="https://github.com/$PUBLIC_REPO/releases/tag/$TAG"
-NOTES_JSON=$(grep '^- ' release-notes.md | head -30 | sed 's/^- //' | jq -R -s 'split("\\n") | map(select(length > 0))')
+NOTES_JSON=$(grep '^- ' release-notes.md | head -30 | sed 's/^- //' | jq -R -s 'split("\n") | map(select(length > 0))')
 jq -n \
   --arg channel "$CHANNEL" \
   --arg tag "$TAG" \
