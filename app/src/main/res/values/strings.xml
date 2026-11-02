@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">chargeWatt</string>
+    <string name="widget_description">Charging and discharging watts, current, voltage and battery level</string>
+</resources>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Compact Pixel 1x1: no percentage; uniform current, power and voltage fonts. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/widget_bg_transparent"
+    android:paddingStart="5dp"
+    android:paddingEnd="5dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp">
+
+    <!-- Full-width charging type pill instead of cramped icon + battery chip. -->
+    <TextView
+        android:id="@+id/widget_status"
+        android:layout_width="match_parent"
+        android:layout_height="23dp"
+        android:gravity="center"
+        android:background="@drawable/widget_source_badge_transparent"
+        android:text="Wireless Qi"
+        android:textColor="#C7A9FC"
+        android:fontFamily="sans-serif-condensed"
+        android:textStyle="bold"
+        android:textSize="10sp"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="8sp"
+        android:autoSizeMaxTextSize="10sp"
+        android:autoSizeStepGranularity="1sp"/>
+
+    <TextView
+        android:id="@+id/widget_value"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:text="−1.33A"
+        android:textColor="#FFB443"
+        android:fontFamily="sans-serif-condensed"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"/>
+
+    <TextView
+        android:id="@+id/widget_sub"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="−5.28W"
+        android:textColor="#F7F7F9"
+        android:fontFamily="sans-serif-condensed"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"/>
+
+    <TextView
+        android:id="@+id/widget_voltage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="4.34V"
+        android:textColor="#9BD6DE"
+        android:fontFamily="sans-serif-condensed"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"/>
+</LinearLayout>
