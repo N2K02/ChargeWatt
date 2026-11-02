@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
@@ -29,6 +28,10 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
+import dev.n2k02.theme.N2K02Theme
+import dev.n2k02.updater.N2K02UpdateBadge
+import dev.n2k02.updater.N2K02UpdateBadgedIcon
+import dev.n2k02.updater.N2K02UpdateScreen
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -64,6 +67,10 @@ class MainActivity : ComponentActivity() {
             BatterySampler.remember(intent)
         }
     }
+    override fun onResume() {
+        super.onResume()
+        ChargeWattUpdater.onResume(this)
+    }
     override fun onStart() {
         super.onStart()
         // Sticky battery broadcasts are best effort. Registration failure must
@@ -95,13 +102,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         ChargeWattSettings.removeLegacyEvents(this)
+        ChargeWattUpdater.init(this)
         Log.i(TAG, "onCreate: restoring dashboard")
         // WorkManager is registered when the widget is enabled/onUpdate. There
         // is no reason to touch OS scheduling on an ordinary app launch.
         WidgetRunState.setPaused(this, false)
         try {
             setContent {
-            ChargeWattScreen(
+              N2K02Theme {
+                ChargeWattScreen(
                 reading = latest.value,
                 onRefresh = {
                     try {
@@ -118,12 +127,11 @@ class MainActivity : ComponentActivity() {
                         Log.e(TAG, "Widget work cancellation failed during Quit", e)
                     }
                     WidgetUpdater.clearAll()
+                    ChargeWattUpdater.controller.cancel()
                     finishAndRemoveTask()
                 },
-                openReleases = {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/N2K02/ChargeWatt/releases")))
-                },
             )
+              }
             }
         } catch (e: RuntimeException) {
             Log.e(TAG, "Dashboard composition startup failed", e)
@@ -176,7 +184,6 @@ private fun ChargeWattScreen(
     reading: BatteryReading?,
     onRefresh: () -> Unit,
     onQuit: () -> Unit,
-    openReleases: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var page by rememberSaveable { mutableStateOf("Home") }
@@ -186,16 +193,13 @@ private fun ChargeWattScreen(
     var interval by remember { mutableIntStateOf(ChargeWattSettings.interval(context)) }
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
+    val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
+    val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
     val accent = if (reading?.currentMa?.let { it < 0 } == true ||
         (reading?.currentMa == null && reading?.mode == ChargeMode.DISCHARGING)) Amber else Green
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Green, secondary = Amber, background = Bg, surface = CardBg,
-            onBackground = Color.White, onSurface = Color.White,
-        )
-    ) {
+    // Same shared Material 3 Expressive theme as mRadio (setContent wrapper).
         Scaffold(
-            containerColor = Bg,
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 // Single app-owned header on every screen, exactly like mRadio.
                 Surface(color = MaterialTheme.colorScheme.surface) {
@@ -252,7 +256,7 @@ private fun ChargeWattScreen(
                 Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.navigationBarsPadding()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                        NavigationBar(containerColor = CardBg) {
+                        NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                     NavigationBarItem(
                         selected = page == "Home",
                         onClick = { page = "Home" },
@@ -262,7 +266,11 @@ private fun ChargeWattScreen(
                     NavigationBarItem(
                         selected = page != "Home",
                         onClick = { page = "Settings" },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        icon = {
+                            N2K02UpdateBadgedIcon(updaterStatus) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            }
+                        },
                         label = { Text("Settings") }
                     )
                     NavigationBarItem(
@@ -285,7 +293,7 @@ private fun ChargeWattScreen(
                         ElevatedCard(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(28.dp),
-                            colors = CardDefaults.elevatedCardColors(containerColor = CardBg)
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                         ) {
                             Column(
                                 Modifier.fillMaxWidth().padding(24.dp),
@@ -340,13 +348,14 @@ private fun ChargeWattScreen(
                         ) { page = "Details" }
                         HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                         SettingsMenuRow(
-                            "About & updates", "App version and releases",
-                            Icons.Default.SystemUpdate
+                            "About & updates", "App version and update checks",
+                            Icons.Default.SystemUpdate,
+                            trailing = { N2K02UpdateBadge(updaterStatus) },
                         ) { page = "Updates" }
                     }
                     "Widget" -> {
                         SectionLabel("Widget • 1×1")
-                        ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = CardBg)) {
+                        ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Appearance", style = MaterialTheme.typography.titleMedium)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -410,13 +419,16 @@ private fun ChargeWattScreen(
                         )
                     }
                     "Updates" -> {
-                        ValueTile("Channel identity", "Experimental and stable use the same package and release signature.")
-                        Button(onClick = openReleases, modifier = Modifier.fillMaxWidth()) { Text("Open GitHub releases") }
+                        N2K02UpdateScreen(
+                            controller = ChargeWattUpdater.controller,
+                            installGuard = ChargeWattUpdater.installGuard,
+                            experimentalEnabled = experimentalEnabled,
+                            onExperimentalEnabledChange = ChargeWattUpdater::setExperimentalEnabled,
+                        )
                     }
                 }
             }
         }
-    }
 }
 
 @Composable
@@ -428,7 +440,7 @@ private fun ValueTile(label: String, value: String, modifier: Modifier = Modifie
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = Color.LightGray)
@@ -440,12 +452,14 @@ private fun ValueTile(label: String, value: String, modifier: Modifier = Modifie
 private fun SettingsMenuRow(
     title: String, subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    trailing: @Composable (() -> Unit)? = null,
     action: () -> Unit
 ) {
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
         leadingContent = { Icon(icon, contentDescription = null) },
+        trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         modifier = Modifier.fillMaxWidth().clickable(onClick = action)
     )

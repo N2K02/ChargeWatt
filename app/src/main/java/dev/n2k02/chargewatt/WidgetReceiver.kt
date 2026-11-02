@@ -75,6 +75,12 @@ object WidgetRunState {
     }
 }
 
+/** Keep long signed values legible in the Pixel's narrow 1×1 launcher cell. */
+object WidgetTextPolicy {
+    fun primary(value: BatteryReading, unit: String): String = if (unit == "mA")
+        value.signedCurrent.replace(" mA", "mA") else value.signedWatts.replace(" W", "W")
+}
+
 /** Pure policy for deciding when to use expensive full updates. */
 object WidgetUpdatePolicy {
     fun needsFull(force: Boolean, themeChanged: Boolean, lastFullAt: Long?, now: Long, maxAgeMs: Long = 60_000L): Boolean =
@@ -156,7 +162,7 @@ object WidgetUpdater {
         if (full.isEmpty() && partial.isEmpty()) return
         val layout = if (theme == "transparent") R.layout.widget_transparent else R.layout.widget_dark
         val views = RemoteViews(context.packageName, layout)
-        views.setTextViewText(R.id.widget_value, if (unit == "mA") value.signedCurrent else value.signedWatts)
+        views.setTextViewText(R.id.widget_value, WidgetTextPolicy.primary(value, unit))
         views.setTextViewText(R.id.widget_sub, if (unit == "mA") value.signedWatts else value.signedCurrent)
         views.setTextViewText(R.id.widget_voltage, value.voltageText)
         views.setTextViewText(R.id.widget_level, value.levelText)
@@ -168,8 +174,17 @@ object WidgetUpdater {
         // XML owns the glass background and pill shapes; no bitmap composition.
         views.setTextColor(R.id.widget_value, if (draining) Color.rgb(255, 180, 67) else Color.rgb(91, 241, 156))
         views.setTextColor(R.id.widget_status, Color.rgb(80, 240, 162))
-        views.setTextViewText(R.id.widget_status,
-            if (draining) "↓" else if (value.mode == ChargeMode.CHARGING) "⚡" else "•")
+        // Plug type and battery net-current direction are different properties.
+        // Show Qi as Qi even if the battery momentarily discharges on the pad.
+        views.setTextViewText(R.id.widget_status, when (value.source) {
+            PowerSource.WIRELESS -> "Qi"
+            PowerSource.AC, PowerSource.USB -> "⚡"
+            else -> if (draining) "↓" else "•"
+        })
+        views.setTextViewTextSize(
+            R.id.widget_status, android.util.TypedValue.COMPLEX_UNIT_SP,
+            if (value.source == PowerSource.WIRELESS) 10f else 17f
+        )
         views.setContentDescription(
             R.id.widget_root,
             "${value.statusText}, ${value.levelText}, ${value.signedWatts}, " +

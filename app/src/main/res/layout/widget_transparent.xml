@@ -7,10 +7,10 @@
     android:orientation="vertical"
     android:gravity="center"
     android:background="@drawable/widget_bg_transparent"
-    android:paddingStart="7dp"
-    android:paddingEnd="7dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
 
     <!-- Frosted-glass header: circular activity badge + level pill -->
     <LinearLayout
@@ -18,12 +18,12 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="3dp">
+        android:paddingBottom="2dp">
 
         <TextView
             android:id="@+id/widget_status"
-            android:layout_width="23dp"
-            android:layout_height="23dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:background="@drawable/widget_status_circle"
             android:gravity="center"
             android:text="↓"
@@ -40,15 +40,15 @@
         <TextView
             android:id="@+id/widget_level"
             android:layout_width="wrap_content"
-            android:layout_height="23dp"
-            android:minWidth="38dp"
+            android:layout_height="20dp"
+            android:minWidth="33dp"
             android:gravity="center"
             android:background="@drawable/widget_chip_transparent"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
             android:text="20%"
             android:textColor="#FAFAFF"
-            android:fontFamily="sans"
+            android:fontFamily="sans-serif-condensed"
             android:textStyle="bold"
             android:textSize="12sp"
             android:includeFontPadding="false"/>
@@ -59,19 +59,19 @@
         android:id="@+id/widget_value"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="24dp"
+        android:minHeight="20dp"
         android:gravity="center"
-        android:text="−2.16 W"
+        android:text="−2.16W"
         android:textColor="#FFB443"
-        android:fontFamily="sans"
+        android:fontFamily="sans-serif-condensed"
         android:textStyle="bold"
-        android:textSize="21sp"
+        android:textSize="17sp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
         android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="11sp"
-        android:autoSizeMaxTextSize="21sp"
+        android:autoSizeMinTextSize="9sp"
+        android:autoSizeMaxTextSize="17sp"
         android:autoSizeStepGranularity="1sp"/>
 
     <TextView
@@ -82,7 +82,7 @@
         android:layout_marginTop="1dp"
         android:text="−588 mA"
         android:textColor="#F7F7F9"
-        android:fontFamily="sans"
+        android:fontFamily="sans-serif-condensed"
         android:textSize="12sp"
         android:includeFontPadding="false"
         android:singleLine="true"
@@ -100,7 +100,7 @@
         android:layout_marginTop="1dp"
         android:text="3.67 V"
         android:textColor="#9BD6DE"
-        android:fontFamily="sans"
+        android:fontFamily="sans-serif-condensed"
         android:textSize="11sp"
         android:includeFontPadding="false"
         android:singleLine="true"

@@ -80,6 +80,15 @@ class BatteryMathTest {
         assertTrue(source.sameContent(source.copy(sampledAtMs = source.sampledAtMs + 1000)))
         assertFalse(source.sameContent(source.copy(currentMa = 451.0)))
     }
+    @Test fun widgetDisplaysQiEvenWhenNetCurrentIsNegative() {
+        val plugged = example(ChargeMode.CHARGING).copy(
+            currentMa = -350.0, powerW = -1.36, source = PowerSource.WIRELESS
+        )
+        assertEquals("Wireless Qi · net battery drain", plugged.statusText)
+        assertEquals("Wireless Qi", plugged.powerSourceText)
+        assertEquals("−1.36W", WidgetTextPolicy.primary(plugged, "W"))
+        assertEquals("−350mA", WidgetTextPolicy.primary(plugged, "mA"))
+    }
     @Test fun missingMeasurementsHaveExplicitPlaceholder() {
         val empty = example(ChargeMode.DISCHARGING).copy(powerW = null, currentMa = null, voltageV = null)
         assertEquals("— W", empty.signedWatts)

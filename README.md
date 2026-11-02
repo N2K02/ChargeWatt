@@ -38,7 +38,7 @@ Github Actions requires existing repository secrets N2K02_PACKAGES_TOKEN and SIG
 
 For local compilation, use Gradle 9.6 with Android SDK and N2K02_PACKAGES_TOKEN, then run: gradle testDebugUnitTest lintDebug assembleDebug. Local debug builds are not signed for in-place updates over release APKs.
 
-The pinned shared updater dependency is included; the current Updates screen opens Github Releases rather than pretending that downloading/installing in-app is already implemented.
+The live `dev.n2k02:updater:0.1.19` controller and complete `N2K02UpdateScreen` now match mRadio: stable/experimental channel toggle, update checks, download progress, cryptographic APK verification, and Android system installer. The preferred source is `https://n2k02.github.io/chargewatt/updates/{channel}.json`, published by CI when the optional `ANDROID_DISTRIBUTION_TOKEN` is available; stable GitHub Releases are the fallback.
 
 ## Startup crash diagnostics
 
@@ -52,3 +52,6 @@ mRadio is the canonical source for a single page header, Settings submenus, divi
 
 ## Glass widget design
 The 1×1 widget has an in-place lightweight glass UI: a static translucent rounded gradient with a fine rim, compact charging/draining circle, battery-percentage pill, large auto-sizing watts/current value, and secondary current/voltage readings. Dark and transparent theme drawables use the same resource IDs. Android RemoteViews cannot provide general live frosted wallpaper blur, so this is a blur-free glass approximation that avoids extra GPU rendering, bitmaps, and animation loops. The existing data-driven fingerprint and partial-update policy remains in place.
+
+## Expressive theme and Qi state
+The app wraps the complete screen in `N2K02Theme` (from the pinned 0.1.4 package), using Material 3 Expressive motion/shapes and system dynamic colors, as mRadio does. Battery current sign is preserved and never misrepresented as charger input power. When Android reports Wireless Qi attached, the widget badge displays **Qi**, even when the net battery current remains negative; the signed wattage and the dashboard explicitly state net battery drain. The 1×1 widget uses narrow, condensed, auto-sized text with shorter unit formatting to avoid Pixel 8 Pro clipping.

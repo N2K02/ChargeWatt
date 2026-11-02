@@ -78,6 +78,20 @@ class PerformanceContractTest {
         assertFalse(ui.contains("ChargingEventLog"))
         assertFalse(ui.contains("SettingsItem("))
     }
+    @Test fun sharedExpressiveThemeAndRealUpdaterAreRequired() {
+        val activity = read("java/dev/n2k02/chargewatt/MainActivity.kt")
+        assertTrue(activity.contains("N2K02Theme {"))
+        assertTrue(activity.contains("N2K02UpdateScreen("))
+        assertTrue(activity.contains("N2K02UpdateBadge("))
+        assertTrue(activity.contains("N2K02UpdateBadgedIcon("))
+        assertFalse(activity.contains("darkColorScheme("))
+        assertFalse(activity.contains("Open GitHub releases"))
+        val updater = read("java/dev/n2k02/chargewatt/ChargeWattUpdater.kt")
+        assertTrue(updater.contains("UpdaterController("))
+        assertTrue(updater.contains("PublishedUpdateSource("))
+        assertTrue(updater.contains("N2K02/ChargeWatt"))
+        assertTrue(updater.contains("onHostResume(activity, installGuard)"))
+    }
     @Test fun widgetIsFixedOneByOne() {
         val provider = read("res/xml/chargewatt_widget_info.xml")
         assertTrue(provider.contains("android:targetCellWidth=\"1\""))
