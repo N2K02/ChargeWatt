@@ -16,13 +16,31 @@ class PerformanceContractTest {
         assertFalse(manifest.contains("POST_NOTIFICATIONS"))
         assertFalse(manifest.contains("FOREGROUND_SERVICE"))
         assertFalse(manifest.contains("WAKE_LOCK"))
-        assertFalse(manifest.contains("<service"))
+        assertTrue(manifest.contains("<service android:name=\".WidgetPollingService\""))
+        assertFalse(manifest.contains("foregroundServiceType"))
+        assertFalse(manifest.contains("FOREGROUND_SERVICE"))
     }
     @Test fun powerEventsOnlyWakeOnConnectionChanges() {
         val manifest = read("AndroidManifest.xml")
         assertTrue(manifest.contains("ACTION_POWER_CONNECTED"))
         assertTrue(manifest.contains("ACTION_POWER_DISCONNECTED"))
         assertFalse(manifest.contains("BOOT_COMPLETED"))
+    }
+    @Test fun notificationFreeServiceIsBestEffortAndStopsOnQuit() {
+        val service = read("java/dev/n2k02/chargewatt/WidgetPollingService.kt")
+        val activity = read("java/dev/n2k02/chargewatt/MainActivity.kt")
+        assertTrue(service.contains("class WidgetPollingService : Service()"))
+        assertTrue(service.contains("START_STICKY"))
+        assertTrue(service.contains("WidgetRunState.isPaused"))
+        assertTrue(service.contains("WidgetUpdater.widgetIds"))
+        assertTrue(service.contains("WidgetPollingActivityState.resumed"))
+        assertTrue(service.contains("ChargeWattSettings.interval"))
+        assertTrue(service.contains("scope.cancel()"))
+        assertFalse(service.contains("startForeground("))
+        assertFalse(service.contains("NotificationManager"))
+        assertTrue(activity.contains("WidgetPollingService.startWhileVisible(this)"))
+        assertTrue(activity.contains("WidgetPollingService.stop(this)"))
+        assertTrue(activity.contains("WidgetPollingActivityState.resumed = false"))
     }
     @Test fun widgetCodeAvoidsOneHertzDiskWritesAndAlwaysOnJobs() {
         val widget = read("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
