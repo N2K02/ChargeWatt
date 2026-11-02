@@ -96,6 +96,19 @@ class BatteryMathTest {
         assertEquals("−1.36W", WidgetTextPolicy.primary(plugged, "W"))
         assertEquals("−350mA", WidgetTextPolicy.primary(plugged, "mA"))
     }
+    @Test fun currentAbbreviationPreventsFourDigitClipping() {
+        assertEquals("−1.33A", WidgetTextPolicy.current(-1331.0))
+        assertEquals("+2.45A", WidgetTextPolicy.current(2450.0))
+        assertEquals("−363mA", WidgetTextPolicy.current(-363.0))
+        assertEquals("−10.0A", WidgetTextPolicy.current(-10000.0))
+        assertEquals("0mA", WidgetTextPolicy.current(0.0))
+        assertEquals("—mA", WidgetTextPolicy.current(null))
+        assertEquals("—W", WidgetTextPolicy.power(null))
+        assertEquals("−5.28W", WidgetTextPolicy.power(-5.28))
+        val reading = example(ChargeMode.DISCHARGING).copy(currentMa = -1331.0, powerW = -5.28)
+        assertEquals("−1.33A", WidgetTextPolicy.primary(reading, "mA"))
+        assertEquals("−5.28W", WidgetTextPolicy.secondary(reading, "mA"))
+    }
     @Test fun missingMeasurementsHaveExplicitPlaceholder() {
         val empty = example(ChargeMode.DISCHARGING).copy(powerW = null, currentMa = null, voltageV = null)
         assertEquals("— W", empty.signedWatts)

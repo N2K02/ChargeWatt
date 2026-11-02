@@ -1,1 +1,6 @@
-<resources><color name="ic_background">#152322</color></resources>
+<resources><color name="ic_background">#152322</color>    <color name="chargewatt_charging">#5BF19C</color>
+    <color name="chargewatt_discharging">#FFB443</color>
+    <color name="chargewatt_voltage">#9BD6DE</color>
+    <color name="chargewatt_purple">#C7A9FC</color>
+    <color name="chargewatt_glass">#1C2629</color>
+</resources>

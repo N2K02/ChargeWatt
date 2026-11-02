@@ -75,10 +75,31 @@ object WidgetRunState {
     }
 }
 
-/** Keep long signed values legible in the Pixel's narrow 1×1 launcher cell. */
+/** Keep 4-digit mA values readable in narrow 1x1 Pixel launcher cells. */
 object WidgetTextPolicy {
-    fun primary(value: BatteryReading, unit: String): String = if (unit == "mA")
-        value.signedCurrent.replace(" mA", "mA") else value.signedWatts.replace(" W", "W")
+    fun current(currentMa: Double?): String {
+        if (currentMa == null || !currentMa.isFinite()) return "—mA"
+        val magnitude = kotlin.math.abs(currentMa)
+        val sign = if (currentMa > 0.0) "+" else if (currentMa < 0.0) "−" else ""
+        val pattern = when {
+            magnitude >= 10_000.0 -> "%.1fA"
+            magnitude >= 1000.0 -> "%.2fA"
+            else -> "%.0fmA"
+        }
+        val amount = if (magnitude >= 1000.0) magnitude / 1000.0 else magnitude
+        return sign + String.format(java.util.Locale.US, pattern, amount)
+    }
+    fun power(powerW: Double?): String {
+        if (powerW == null || !powerW.isFinite()) return "—W"
+        val magnitude = kotlin.math.abs(powerW)
+        val sign = if (powerW > 0) "+" else if (powerW < 0) "−" else ""
+        val pattern = if (magnitude >= 100.0) "%.0fW" else if (magnitude >= 10.0) "%.1fW" else "%.2fW"
+        return sign + String.format(java.util.Locale.US, pattern, magnitude)
+    }
+    fun primary(reading: BatteryReading, unit: String): String =
+        if (unit == "mA") current(reading.currentMa) else power(reading.powerW)
+    fun secondary(reading: BatteryReading, unit: String): String =
+        if (unit == "mA") power(reading.powerW) else current(reading.currentMa)
 }
 
 /** Pure policy for deciding when to use expensive full updates. */
@@ -163,7 +184,7 @@ object WidgetUpdater {
         val layout = if (theme == "transparent") R.layout.widget_transparent else R.layout.widget_dark
         val views = RemoteViews(context.packageName, layout)
         views.setTextViewText(R.id.widget_value, WidgetTextPolicy.primary(value, unit))
-        views.setTextViewText(R.id.widget_sub, if (unit == "mA") value.signedWatts else value.signedCurrent)
+        views.setTextViewText(R.id.widget_sub, WidgetTextPolicy.secondary(value, unit))
         views.setTextViewText(R.id.widget_voltage, value.voltageText)
         views.setTextViewText(R.id.widget_level, value.levelText)
         val draining = when {
@@ -172,8 +193,11 @@ object WidgetUpdater {
         }
         // Contrast follows measured net battery flow, independent of plug type.
         // XML owns the glass background and pill shapes; no bitmap composition.
-        views.setTextColor(R.id.widget_value, if (draining) Color.rgb(255, 180, 67) else Color.rgb(91, 241, 156))
-        views.setTextColor(R.id.widget_status, Color.rgb(80, 240, 162))
+        views.setTextColor(R.id.widget_value,
+            context.getColor(if (draining) R.color.chargewatt_discharging else R.color.chargewatt_charging))
+        views.setTextColor(R.id.widget_status,
+            context.getColor(if (value.source == PowerSource.WIRELESS) R.color.chargewatt_purple
+                else R.color.chargewatt_charging))
         // Plug type and battery net-current direction are different properties.
         // Show Qi as Qi even if the battery momentarily discharges on the pad.
         views.setTextViewText(R.id.widget_status, when (value.source) {

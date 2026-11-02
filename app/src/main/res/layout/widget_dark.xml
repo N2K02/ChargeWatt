@@ -61,17 +61,17 @@
         android:layout_height="wrap_content"
         android:minHeight="20dp"
         android:gravity="center"
-        android:text="−2.16W"
+        android:text="−1.33A"
         android:textColor="#FFB443"
         android:fontFamily="sans-serif-condensed"
         android:textStyle="bold"
-        android:textSize="17sp"
+        android:textSize="18sp"
         android:includeFontPadding="false"
         android:singleLine="true"
         android:ellipsize="end"
         android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="9sp"
-        android:autoSizeMaxTextSize="17sp"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="18sp"
         android:autoSizeStepGranularity="1sp"/>
 
     <TextView
@@ -80,7 +80,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:layout_marginTop="1dp"
-        android:text="−588 mA"
+        android:text="−5.28W"
         android:textColor="#F7F7F9"
         android:fontFamily="sans-serif-condensed"
         android:textSize="12sp"
@@ -88,7 +88,7 @@
         android:singleLine="true"
         android:ellipsize="end"
         android:autoSizeTextType="uniform"
-        android:autoSizeMinTextSize="9sp"
+        android:autoSizeMinTextSize="8sp"
         android:autoSizeMaxTextSize="12sp"
         android:autoSizeStepGranularity="1sp"/>
 

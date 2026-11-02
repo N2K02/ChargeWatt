@@ -92,6 +92,22 @@ class PerformanceContractTest {
         assertTrue(updater.contains("N2K02/ChargeWatt"))
         assertTrue(updater.contains("onHostResume(activity, installGuard)"))
     }
+    @Test fun bothDashboardsSharePaletteWithoutDuplicateHeaders() {
+        val activity = read("java/dev/n2k02/chargewatt/MainActivity.kt")
+        val ui = read("java/dev/n2k02/chargewatt/BatteryDashboard.kt")
+        assertTrue(activity.contains("HomeDashboard("))
+        assertTrue(activity.contains("BatteryDetailsDashboard("))
+        assertTrue(ui.contains("ChargeWattHero("))
+        assertTrue(ui.contains("SectionTitle(\"Electrical\""))
+        assertTrue(ui.contains("SectionTitle(\"Battery information\""))
+        assertTrue(ui.contains("ChargeWattPalette"))
+        assertFalse(ui.contains("NavigationBar("))
+        assertFalse(ui.contains("ChargingEventLog"))
+        val widget = read("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
+        assertTrue(widget.contains("WidgetTextPolicy.secondary(value, unit)"))
+        assertTrue(widget.contains("R.color.chargewatt_charging"))
+        assertTrue(widget.contains("R.color.chargewatt_discharging"))
+    }
     @Test fun widgetIsFixedOneByOne() {
         val provider = read("res/xml/chargewatt_widget_info.xml")
         assertTrue(provider.contains("android:targetCellWidth=\"1\""))

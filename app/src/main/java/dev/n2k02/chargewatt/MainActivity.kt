@@ -53,8 +53,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Amber = Color(0xFFFFB74B)
-
 class MainActivity : ComponentActivity() {
     companion object { private const val TAG = "ChargeWattStartup" }
     private val latest = mutableStateOf<BatteryReading?>(null)
@@ -192,11 +190,6 @@ private fun ChargeWattScreen(
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
-    val draining = reading?.currentMa?.let { it < 0 } == true ||
-        (reading?.currentMa == null && reading?.mode == ChargeMode.DISCHARGING)
-    val accent = if (draining) {
-        if (androidx.compose.foundation.isSystemInDarkTheme()) Amber else Color(0xFF925000)
-    } else MaterialTheme.colorScheme.primary
     // Same shared Material 3 Expressive theme as mRadio (setContent wrapper).
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
@@ -290,46 +283,8 @@ private fun ChargeWattScreen(
             ) {
                 when (page) {
                     "Home" -> {
-                        ElevatedCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                        ) {
-                            Column(
-                                Modifier.fillMaxWidth().padding(24.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(reading?.statusText ?: "Reading battery…", color = accent)
-                                Text(
-                                    if (unit == "mA") reading?.signedCurrent ?: "— mA" else reading?.signedWatts ?: "— W",
-                                    style = MaterialTheme.typography.displayLarge,
-                                    fontWeight = FontWeight.Bold, color = accent
-                                )
-                                Text(
-                                    if (unit == "mA") reading?.signedWatts ?: "— W" else reading?.signedCurrent ?: "— mA",
-                                    style = MaterialTheme.typography.titleLarge
-                                )
-                                Text((reading?.levelText ?: "—%") + "  ·  " + (reading?.voltageText ?: "— V"),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Battery-side measurements", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ValueTile("Temperature", reading?.tempText ?: "— °C", Modifier.weight(1f))
-                            ValueTile("Battery", reading?.levelText ?: "—%", Modifier.weight(1f))
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ValueTile("Power source", reading?.powerSourceText ?: "Unavailable", Modifier.weight(1f))
-                            ValueTile("Health", reading?.health ?: "Unknown", Modifier.weight(1f))
-                        }
-                        Button(onClick = { page = "Details" }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Battery details")
-                        }
-                        Text(
-                            "Foreground refresh every " + interval + "s. Android controls background updates. No notification or foreground service.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        HomeDashboard(reading = reading, unit = unit,
+                            interval = interval, onDetails = { page = "Details" })
                     }
                     "Settings" -> {
                         Text(
@@ -403,20 +358,7 @@ private fun ChargeWattScreen(
                         }
                     }
                     "Details" -> {
-                        DetailRow("State", reading?.statusText ?: "Unknown")
-                        DetailRow("Battery current", reading?.signedCurrent ?: "— mA")
-                        DetailRow("Battery-side power", reading?.signedWatts ?: "— W")
-                        DetailRow("Voltage", reading?.voltageText ?: "— V")
-                        DetailRow("Temperature", reading?.tempText ?: "— °C")
-                        DetailRow("Battery level", reading?.levelText ?: "—%")
-                        DetailRow("Power source", reading?.powerSourceText ?: "Unavailable")
-                        DetailRow("Health", reading?.health ?: "Unknown")
-                        DetailRow("Cycle count", reading?.cycleCount?.toString() ?: "Not available")
-                        Text(
-                            "Device-reported battery-side power, not wall-adapter input power.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
+                        BatteryDetailsDashboard(reading = reading, unit = unit)
                     }
                     "Updates" -> {
                         N2K02UpdateScreen(
@@ -436,19 +378,6 @@ private fun SectionLabel(value: String) {
     Text(value, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 }
 @Composable
-private fun ValueTile(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-@Composable
 private fun SettingsMenuRow(
     title: String, subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -465,13 +394,3 @@ private fun SettingsMenuRow(
     )
 }
 
-@Composable
-private fun DetailRow(label: String, value: String) {
-    ListItem(
-        headlineContent = { Text(label, style = MaterialTheme.typography.bodyMedium) },
-        supportingContent = {
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
-    )
-}

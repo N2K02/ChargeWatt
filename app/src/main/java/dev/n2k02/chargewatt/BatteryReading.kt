@@ -35,12 +35,6 @@ data class BatteryReading(
         PowerSource.UNKNOWN -> "Unknown charger"
     }
     val statusText: String get() = when {
-        source == PowerSource.WIRELESS && (
-            (currentMa != null && currentMa < 0.0) ||
-                (currentMa == null && mode == ChargeMode.DISCHARGING)
-        ) -> "Wireless Qi · net battery drain"
-        source == PowerSource.WIRELESS && mode == ChargeMode.FULL -> "Wireless Qi · Full"
-        source == PowerSource.WIRELESS -> "Wireless Qi"
         mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
         mode == ChargeMode.DISCHARGING -> "Discharging"
         mode == ChargeMode.FULL -> "Full"
@@ -76,13 +70,11 @@ object BatteryMath {
         val magnitude = String.format(Locale.US, number, abs(value))
         return (if (value > 0) "+" else if (value < 0) "−" else "") + magnitude + " " + unit
     }
-    // EXTRA_PLUGGED can contain multiple flags on some device implementations.
-    // Prefer wireless for a Qi pad, then USB, then AC.
-    fun source(plugged: Int): PowerSource = when {
-        plugged == 0 -> PowerSource.BATTERY
-        plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0 -> PowerSource.WIRELESS
-        plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> PowerSource.USB
-        plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> PowerSource.AC
+    fun source(plugged: Int): PowerSource = when (plugged) {
+        BatteryManager.BATTERY_PLUGGED_AC -> PowerSource.AC
+        BatteryManager.BATTERY_PLUGGED_USB -> PowerSource.USB
+        BatteryManager.BATTERY_PLUGGED_WIRELESS -> PowerSource.WIRELESS
+        0 -> PowerSource.BATTERY
         else -> PowerSource.UNKNOWN
     }
     fun mode(status: Int, plugged: Int): ChargeMode = when (status) {
