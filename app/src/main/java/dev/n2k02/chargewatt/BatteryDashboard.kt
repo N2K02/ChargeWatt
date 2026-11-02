@@ -264,7 +264,7 @@ internal fun HomeDashboard(
     }
     Text(
         "Foreground refresh every " + interval +
-            "s. Background updates are system-managed; no notification or foreground service.",
+            "s while the app is active or Android allows background polling. No notification; charging events and periodic work provide fallback.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
