@@ -20,6 +20,13 @@ class PerformanceContractTest {
         assertTrue(manifest.contains("android:foregroundServiceType=\"specialUse\""))
         assertTrue(manifest.contains("PROPERTY_SPECIAL_USE_FGS_SUBTYPE"))
     }
+    @Test fun powerReceiverLogsRawWirelessQiExtrasAndFreshSnapshots() {
+        val receiver = read("java/dev/n2k02/chargewatt/PowerConnectionReceiver.kt")
+        assertTrue(receiver.contains("BatterySampler.describeFreshSnapshot(appContext)"))
+        assertTrue(receiver.contains("Power refresh attempt="))
+        assertTrue(receiver.contains("BatterySampler.clear()"))
+    }
+
     @Test fun powerEventsOnlyWakeOnConnectionChanges() {
         val manifest = read("AndroidManifest.xml")
         assertTrue(manifest.contains("ACTION_POWER_CONNECTED"))
@@ -34,6 +41,8 @@ class PerformanceContractTest {
         assertTrue(service.contains("WidgetRunState.isPaused"))
         assertTrue(service.contains("WidgetUpdater.widgetIds"))
         assertTrue(service.contains("WidgetPollingActivityState.resumed"))
+        assertTrue(service.contains("BatteryEventDiagnostics.describe"))
+        assertTrue(service.contains("sourceTracker.changed(status, plugged)"))
         assertTrue(service.contains("ChargeWattSettings.interval"))
         assertTrue(service.contains("scope.cancel()"))
         assertTrue(service.contains("startForeground("))
