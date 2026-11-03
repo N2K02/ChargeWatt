@@ -123,6 +123,24 @@ object ChargeWattSettings {
     }
 }
 
+object BatteryEventDiagnostics {
+    /** Include the raw Android extras and decoded Qi bit for logcat diagnosis. */
+    fun describe(status: Int, plugged: Int): String {
+        val statusName = when (status) {
+            BatteryManager.BATTERY_STATUS_CHARGING -> "CHARGING"
+            BatteryManager.BATTERY_STATUS_DISCHARGING -> "DISCHARGING"
+            BatteryManager.BATTERY_STATUS_FULL -> "FULL"
+            BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "NOT_CHARGING"
+            BatteryManager.BATTERY_STATUS_UNKNOWN -> "UNKNOWN"
+            else -> "STATUS_$status"
+        }
+        val source = BatteryMath.source(plugged)
+        val wirelessQi = plugged >= 0 &&
+            (plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0)
+        return "EXTRA_STATUS=$status($statusName) EXTRA_PLUGGED=$plugged(source=$source, wirelessQi=$wirelessQi)"
+    }
+}
+
 object BatterySampler {
     // The resumed activity caches ACTION_BATTERY_CHANGED, avoiding 1Hz sticky
     // broadcast reads. Workers use a single sticky query when not in foreground.
@@ -131,6 +149,13 @@ object BatterySampler {
         if (intent?.action == Intent.ACTION_BATTERY_CHANGED) latestIntent = intent
     }
     fun clear() { latestIntent = null }
+    fun describeFreshSnapshot(context: Context): String {
+        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
+            ?: BatteryManager.BATTERY_STATUS_UNKNOWN
+        val plugged = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
+        return BatteryEventDiagnostics.describe(status, plugged)
+    }
     fun read(context: Context, freshSnapshot: Boolean = false): BatteryReading {
         val battery = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         // A forced power-transition refresh must never reuse a potentially stale
