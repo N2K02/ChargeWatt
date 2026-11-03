@@ -85,8 +85,10 @@ class BatteryMathTest {
             currentMa = -350.0, powerW = -1.36, source = PowerSource.WIRELESS
         )
         assertEquals("Wireless Qi · net battery drain", plugged.statusText)
-        assertEquals("Wireless Qi · net battery drain",
+        assertEquals("Discharging",
             plugged.copy(mode = ChargeMode.DISCHARGING).statusText)
+        assertEquals("Not charging",
+            plugged.copy(mode = ChargeMode.IDLE).statusText)
         assertEquals("Wireless Qi", plugged.copy(currentMa = 350.0,
             powerW = 1.36, mode = ChargeMode.CHARGING).statusText)
         assertEquals(PowerSource.WIRELESS,
@@ -100,11 +102,15 @@ class BatteryMathTest {
         val chargingQi = example(ChargeMode.CHARGING).copy(
             source = PowerSource.WIRELESS, currentMa = 1270.0)
         assertEquals("Wireless Qi", WidgetTextPolicy.chargerBadge(chargingQi))
-        assertEquals("Wireless Qi", WidgetTextPolicy.chargerBadge(
+        assertEquals("On battery", WidgetTextPolicy.chargerBadge(
             chargingQi.copy(currentMa = -200.0, mode = ChargeMode.DISCHARGING)))
+        assertEquals("Not charging", WidgetTextPolicy.chargerBadge(
+            chargingQi.copy(mode = ChargeMode.IDLE)))
+        assertEquals("Full", WidgetTextPolicy.chargerBadge(
+            chargingQi.copy(mode = ChargeMode.FULL)))
         assertEquals("AC charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.AC)))
         assertEquals("USB charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.USB)))
-        assertEquals("On battery", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.BATTERY)))
+        assertEquals("Charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.BATTERY)))
         assertEquals("Source unknown", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.UNKNOWN)))
         assertEquals("3.94V", WidgetTextPolicy.voltage(3.94))
         assertEquals("—V", WidgetTextPolicy.voltage(null))
