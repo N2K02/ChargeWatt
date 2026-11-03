@@ -17,7 +17,7 @@ import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
-/** An installed widget uses periodic OS-managed work, not a continuously running service. */
+/** Installed widget lifecycle owns its periodic fallback and sticky foreground sampler. */
 class ChargeWattWidget : AppWidgetProvider() {
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
