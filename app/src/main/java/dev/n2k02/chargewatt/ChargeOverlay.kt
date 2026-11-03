@@ -18,11 +18,9 @@ import kotlin.math.roundToInt
 
 /**
  * An optional, user-visible floating power meter, similar to NetSpeed.
- * It is not a foreground service and never posts a notification. Android may
- * still stop the process: a visible TYPE_APPLICATION_OVERLAY is not an exemption
- * from background-service limits.
- *
- * Rendering piggybacks on existing battery samples; it has no polling loop.
+ * The display is not a service and owns no polling loop; sampling is performed
+ * by WidgetPollingService, which also services the home widget and posts its
+ * required ongoing foreground-service notification.
  */
 @SuppressLint("StaticFieldLeak")
 object ChargeOverlay {
