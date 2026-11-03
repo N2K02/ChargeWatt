@@ -55,7 +55,7 @@ data class BatteryReading(
     fun sameContent(other: BatteryReading): Boolean =
         copy(sampledAtMs = 0L) == other.copy(sampledAtMs = 0L)
     fun fingerprint(unit: String, theme: String): String =
-        listOf(mode, source, signedWatts, signedCurrent, voltageText, theme, unit).joinToString("|")
+        listOf(mode, source, signedWatts, signedCurrent, voltageText, tempText, levelText, theme, unit).joinToString("|")
 }
 
 object BatteryMath {
@@ -95,6 +95,7 @@ object ChargeWattSettings {
     private const val KEY_INTERVAL = "refresh_seconds"
     private const val KEY_START_ON_BOOT = "start_on_boot"
     private const val KEY_THEME = "widget_theme"
+    private const val KEY_BORDER = "widget_border"
     private const val KEY_UNIT = "primary_unit"
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
     fun startOnBoot(context: Context): Boolean = prefs(context).getBoolean(KEY_START_ON_BOOT, true)
@@ -108,7 +109,12 @@ object ChargeWattSettings {
     }
     fun theme(context: Context): String = prefs(context).getString(KEY_THEME, "dark") ?: "dark"
     fun setTheme(context: Context, value: String) {
-        prefs(context).edit().putString(KEY_THEME, if (value == "transparent") value else "dark").apply()
+        val theme = if (value in setOf("transparent", "compact")) value else "dark"
+        prefs(context).edit().putString(KEY_THEME, theme).apply()
+    }
+    fun showBorder(context: Context): Boolean = prefs(context).getBoolean(KEY_BORDER, true)
+    fun setShowBorder(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_BORDER, value).apply()
     }
     fun removeLegacyEvents(context: Context) {
         val settings = prefs(context)

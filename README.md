@@ -6,7 +6,7 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 
 - Shows charging (green) and discharging (amber) automatically, including wireless Qi charging. Current sign comes from BatteryManager, so a connected charger with net drain is correctly displayed as negative.
 - Shows battery-side watts (W), current (mA), voltage (V), and battery percentage.
-- Dark or transparent widget themes.
+- Dark, transparent, and compact widget styles, with an optional outline border.
 - A sticky foreground service samples battery state for the installed widget at the saved interval and updates the widget from each sample.
 - Choose W or mA as the main value.
 - User-selectable refresh 1–10 seconds, default 2 seconds.
@@ -52,7 +52,7 @@ This app uses the exact LocalAdb WorkDatabase_Impl constructor preservation rule
 mRadio is the canonical source for a single page header, Settings submenus, divider placement and system-bar insets. The power-source tile says **Battery** when Android reports the phone unplugged (plugged=0); charger labels distinguish AC, USB and Qi. No Logs screen or local charging-event history is included.
 
 ## Glass widget design
-The 1×1 widget has an in-place lightweight glass UI: a static translucent rounded gradient with a fine rim, compact charging/draining circle, battery-percentage pill, large auto-sizing watts/current value, and secondary current/voltage readings. Dark and transparent theme drawables use the same resource IDs. Android RemoteViews cannot provide general live frosted wallpaper blur, so this is a blur-free glass approximation that avoids extra GPU rendering, bitmaps, and animation loops. The existing data-driven fingerprint and partial-update policy remains in place.
+The 1×1 widget has three lightweight appearance styles: Dark, Transparent, and Compact. It places a charging-state icon on the left of the top row and two-digit battery temperature plus battery percentage on the right, followed by auto-sizing current, power, and voltage. The optional outline border can be disabled. Android RemoteViews cannot provide general live frosted wallpaper blur, so the backgrounds use static gradients and shapes without bitmaps or animation loops.
 
 ## Expressive theme and Qi state
 The app wraps the complete screen in `N2K02Theme` (from the pinned 0.1.4 package), using Material 3 Expressive motion/shapes and system dynamic colors, as mRadio does. Battery current sign is preserved and never misrepresented as charger input power. When Android reports Wireless Qi attached, the widget badge displays **Qi**, even when the net battery current remains negative; the signed wattage and the dashboard explicitly state net battery drain. The 1×1 widget uses narrow, condensed, auto-sized text with shorter unit formatting to avoid Pixel 8 Pro clipping.
@@ -64,7 +64,7 @@ CI publishes the same release-signed APK to the public `N2K02/n2k02.github.io` G
 Both pages share a single statically drawn glass battery hero, a progress ring, and green/amber state colors. Home displays four compact status cards and one clear details action. Details shows grouped electrical metrics and a four-row battery information card. Both keep the canonical mRadio header and bottom navigation, use the shared Material 3 Expressive theme, and add no notifications, services, animations, or in-app logs. Launcher icon and widget use matching green #5BF19C, amber #FFB443, cyan #9BD6DE and purple #C7A9FC. To avoid clipping in 1×1 cells, current >=1000mA uses A (−1331mA→−1.33A) for both primary and secondary widget readings.
 
 ## Compact widget design update
-The 1×1 widget no longer shows a battery-percent pill. A full-width status badge displays the active charging state and source. The three battery-side measurements use the same bold condensed 14sp font with matching auto-size bounds. The two widget themes retain their glass treatment without animations. **Foreground refresh defaults to 1 second**, configurable from 1 to 10 seconds; the explicitly saved interval drives each sampling cycle. Quit uses the same rounded PowerSettingsNew icon as mRadio.
+The 1×1 widget uses a small state icon instead of charging-status text or a badge. AC charging uses a plug, wireless Qi uses radio-wave/charging marks, discharging uses a battery with a downward arrow, and full/idle use battery icons. Temperature and charge percentage update through the same data fingerprint as the electrical readings. Dark, Transparent, and Compact styles share consistent widget fields, and the border can be disabled. Temperature and percentage refreshes are included in the widget fingerprint so their visible changes are never skipped. **Foreground refresh defaults to 1 second**, configurable from 1 to 10 seconds; the explicitly saved interval drives each sampling cycle. Quit uses the same rounded PowerSettingsNew icon as mRadio.
 
 ## Background widget updates
 
@@ -72,4 +72,4 @@ The foreground battery-sampling service runs only while at least one ChargeWatt 
 
 Android requires the service to provide an ongoing notification. ChargeWatt does not request notification permission; when permission is denied, Android can hide the notification from the drawer while still showing the running service in system active-app controls. The service uses START_STICKY to request a restart if Android recreates its process and rechecks whether a widget still exists before sampling.
 
-On USB power connect/disconnect, the receiver requests forced widget refreshes from new sticky battery snapshots rather than a cached activity broadcast, with delayed rereads to catch asynchronous power-state changes. The Wireless Qi badge text uses charging green (#5BF19C) in both widget themes and the runtime update path.
+On USB power connect/disconnect, the receiver requests forced widget refreshes from new sticky battery snapshots rather than a cached activity broadcast, with delayed rereads to catch asynchronous power-state changes. The Wireless Qi icon uses charging green (#5BF19C), while the discharging battery icon uses amber.

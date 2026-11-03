@@ -1,0 +1,4 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="@color/chargewatt_charging" android:strokeWidth="1.8" android:strokeLineCap="round" android:fillColor="@android:color/transparent" android:pathData="M3.5,8.5a13,13 0,0 1,17 0M6.5,11.5a8.5,8.5 0,0 1,11 0M9.5,14.5a4,4 0,0 1,5 0" />
+    <path android:fillColor="@color/chargewatt_charging" android:pathData="M12.2,13.6l-2.4,4.1h2.1l-0.3,3.3 2.8,-4.4h-2.1l0.4,-3z" />
+</vector>

@@ -61,21 +61,23 @@ class ChargeWattWidgetForegroundServiceContractTest {
         assertTrue(receiver.contains("Thread.sleep(1_500L)"))
     }
 
-    @Test fun bothWidgetThemesAndRuntimeUseGreenQiBadgeText() {
-        for (theme in listOf("dark", "transparent")) {
+    @Test fun widgetChargingTypeUsesAnIconInsteadOfABadge() {
+        for (theme in listOf("dark", "transparent", "compact")) {
             val file = listOf(
                 File("src/main/res/layout/widget_$theme.xml"),
                 File("app/src/main/res/layout/widget_$theme.xml")
             ).first { it.isFile }
             val xml = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
-            val nodes = xml.getElementsByTagName("TextView")
-            val badge = (0 until nodes.length).map { nodes.item(it) }
-                .first { it.attributes.getNamedItem("android:id")?.nodeValue?.endsWith("/widget_status") == true }
-            assertEquals("#5BF19C", badge.attributes.getNamedItem("android:textColor")?.nodeValue)
+            val nodes = xml.getElementsByTagName("ImageView")
+            val icon = (0 until nodes.length).map { nodes.item(it) }
+                .first { it.attributes.getNamedItem("android:id")?.nodeValue?.endsWith("/widget_charge_icon") == true }
+            assertNotNull(icon)
         }
         val widget = file("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
-        assertTrue(widget.contains("views.setTextColor(R.id.widget_status"))
-        assertTrue(widget.contains("context.getColor(R.color.chargewatt_charging)"))
+        assertTrue(widget.contains("views.setImageViewResource(R.id.widget_charge_icon"))
+        assertTrue(widget.contains("WidgetChargeIcon.WIRELESS"))
+        assertTrue(widget.contains("WidgetChargeIcon.DISCHARGING"))
+        assertFalse(widget.contains("setTextViewText(R.id.widget_status"))
         assertFalse(widget.contains("value.source == PowerSource.WIRELESS) R.color.chargewatt_purple"))
     }
 }

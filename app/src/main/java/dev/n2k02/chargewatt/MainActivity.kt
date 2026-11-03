@@ -197,6 +197,7 @@ private fun ChargeWattScreen(
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
     var startOnBoot by remember { mutableStateOf(ChargeWattSettings.startOnBoot(context)) }
+    var showBorder by remember { mutableStateOf(ChargeWattSettings.showBorder(context)) }
 
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
@@ -311,7 +312,7 @@ private fun ChargeWattScreen(
                             modifier = Modifier.padding(start = 16.dp, top = 6.dp, bottom = 12.dp)
                         )
                         SettingsMenuRow(
-                            "Widget display", "Theme, power units and refresh interval",
+                            "Widget display", "Theme, border, power units and refresh interval",
                             Icons.Default.Tune
                         ) { page = "Widget" }
                         SettingsMenuRow(
@@ -334,7 +335,7 @@ private fun ChargeWattScreen(
                         ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Appearance", style = MaterialTheme.typography.titleMedium)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     FilterChip(
                                         selected = theme == "dark", onClick = {
                                             theme = "dark"; ChargeWattSettings.setTheme(context, theme); onRefresh()
@@ -345,7 +346,23 @@ private fun ChargeWattScreen(
                                             theme = "transparent"; ChargeWattSettings.setTheme(context, theme); onRefresh()
                                         }, label = { Text("Transparent") }
                                     )
+                                    FilterChip(
+                                        selected = theme == "compact", onClick = {
+                                            theme = "compact"; ChargeWattSettings.setTheme(context, theme); onRefresh()
+                                        }, label = { Text("Compact") }
+                                    )
                                 }
+                                ListItem(
+                                    headlineContent = { Text("Widget border") },
+                                    supportingContent = { Text(if (showBorder) "Outline visible" else "Outline hidden") },
+                                    trailingContent = {
+                                        Switch(checked = showBorder, onCheckedChange = { enabled ->
+                                            showBorder = enabled
+                                            ChargeWattSettings.setShowBorder(context, enabled)
+                                            onRefresh()
+                                        })
+                                    }
+                                )
                                 HorizontalDivider()
                                 HorizontalDivider()
                                 Text("Primary speed unit", style = MaterialTheme.typography.titleMedium)

@@ -83,6 +83,8 @@ object WidgetRunState {
 }
 
 /** Keep 4-digit mA values readable in narrow 1x1 Pixel launcher cells. */
+enum class WidgetChargeIcon { AC, WIRELESS, DISCHARGING, FULL, IDLE }
+
 object WidgetTextPolicy {
     fun current(currentMa: Double?): String {
         if (currentMa == null || !currentMa.isFinite()) return "—mA"
@@ -107,18 +109,15 @@ object WidgetTextPolicy {
         if (voltageV == null || !voltageV.isFinite()) "—V"
         else String.format(java.util.Locale.US, "%.2fV", voltageV)
 
-    /** Report the active charge state before showing a potentially stale source flag. */
-    fun chargerBadge(reading: BatteryReading): String = when (reading.mode) {
-        ChargeMode.CHARGING -> when (reading.source) {
-            PowerSource.WIRELESS -> "Wireless Qi"
-            PowerSource.AC -> "AC charging"
-            PowerSource.USB -> "USB charging"
-            PowerSource.BATTERY -> "Charging"
-            PowerSource.UNKNOWN -> "Source unknown"
-        }
-        ChargeMode.FULL -> "Full"
-        ChargeMode.DISCHARGING -> "On battery"
-        ChargeMode.IDLE -> if (reading.source == PowerSource.UNKNOWN) "Source unknown" else "Not charging"
+
+    fun temperature(reading: BatteryReading): String = reading.temperatureC
+        ?.let { String.format(java.util.Locale.US, "%02d°", kotlin.math.roundToInt(it)) } ?: "—°"
+    fun level(reading: BatteryReading): String = reading.level?.coerceIn(0, 100)?.let { "$it%" } ?: "—%"
+    fun chargeIcon(reading: BatteryReading): WidgetChargeIcon = when (reading.mode) {
+        ChargeMode.DISCHARGING -> WidgetChargeIcon.DISCHARGING
+        ChargeMode.FULL -> WidgetChargeIcon.FULL
+        ChargeMode.CHARGING -> if (reading.source == PowerSource.WIRELESS) WidgetChargeIcon.WIRELESS else WidgetChargeIcon.AC
+        ChargeMode.IDLE -> WidgetChargeIcon.IDLE
     }
 
     fun primary(reading: BatteryReading, unit: String): String =
@@ -191,43 +190,71 @@ object WidgetUpdater {
         val unit = ChargeWattSettings.unit(context)
         if (ids.isEmpty()) return
         val theme = ChargeWattSettings.theme(context)
-        val fingerprint = value.fingerprint(unit, theme)
+        val showBorder = ChargeWattSettings.showBorder(context)
+        val styleKey = "$theme|border=$showBorder"
+        val fingerprint = value.fingerprint(unit, styleKey)
         val now = SystemClock.elapsedRealtime()
         val full = mutableListOf<Int>()
         val partial = mutableListOf<Int>()
         for (id in ids) {
             if (!force && fingerprint == fingerprints[id]) continue
-            if (WidgetUpdatePolicy.needsFull(force, themes[id] != theme, lastFull[id], now)) {
+            if (WidgetUpdatePolicy.needsFull(force, themes[id] != styleKey, lastFull[id], now)) {
                 full.add(id)
                 lastFull[id] = now
             } else {
                 partial.add(id)
             }
             fingerprints[id] = fingerprint
-            themes[id] = theme
+            themes[id] = styleKey
         }
         if (full.isEmpty() && partial.isEmpty()) return
-        val layout = if (theme == "transparent") R.layout.widget_transparent else R.layout.widget_dark
+        val layout = when (theme) {
+            "transparent" -> R.layout.widget_transparent
+            "compact" -> R.layout.widget_compact
+            else -> R.layout.widget_dark
+        }
         val views = RemoteViews(context.packageName, layout)
         views.setTextViewText(R.id.widget_value, WidgetTextPolicy.primary(value, unit))
         views.setTextViewText(R.id.widget_sub, WidgetTextPolicy.secondary(value, unit))
         views.setTextViewText(R.id.widget_voltage, WidgetTextPolicy.voltage(value.voltageV))
+        views.setTextViewText(R.id.widget_temperature, WidgetTextPolicy.temperature(value))
+        views.setTextViewText(R.id.widget_level, WidgetTextPolicy.level(value))
+        val icon = when (WidgetTextPolicy.chargeIcon(value)) {
+            WidgetChargeIcon.AC -> R.drawable.ic_widget_ac
+            WidgetChargeIcon.WIRELESS -> R.drawable.ic_widget_wireless
+            WidgetChargeIcon.DISCHARGING -> R.drawable.ic_widget_discharging
+            WidgetChargeIcon.FULL -> R.drawable.ic_widget_full
+            WidgetChargeIcon.IDLE -> R.drawable.ic_widget_idle
+        }
+        views.setImageViewResource(R.id.widget_charge_icon, icon)
+        views.setContentDescription(R.id.widget_charge_icon, when (WidgetTextPolicy.chargeIcon(value)) {
+            WidgetChargeIcon.AC -> "AC charging"
+            WidgetChargeIcon.WIRELESS -> "Wireless Qi charging"
+            WidgetChargeIcon.DISCHARGING -> "Discharging"
+            WidgetChargeIcon.FULL -> "Battery full"
+            WidgetChargeIcon.IDLE -> "Not charging"
+        })
+        val background = when {
+            showBorder && theme == "transparent" -> R.drawable.widget_bg_transparent
+            !showBorder && theme == "transparent" -> R.drawable.widget_bg_transparent_borderless
+            showBorder && theme == "compact" -> R.drawable.widget_bg_compact
+            !showBorder && theme == "compact" -> R.drawable.widget_bg_compact_borderless
+            showBorder -> R.drawable.widget_bg_dark
+            else -> R.drawable.widget_bg_dark_borderless
+        }
+        views.setInt(R.id.widget_root, "setBackgroundResource", background)
         val draining = when {
             value.currentMa != null -> value.currentMa < 0.0
             else -> value.mode == ChargeMode.DISCHARGING
         }
         // Contrast follows measured net battery flow, independent of plug type.
-        // XML owns the glass background and pill shapes; no bitmap composition.
+        // XML owns the glass background and icon assets; no bitmap composition.
         views.setTextColor(R.id.widget_value,
             context.getColor(if (draining) R.color.chargewatt_discharging else R.color.chargewatt_charging))
-        views.setTextColor(R.id.widget_status,
-            context.getColor(R.color.chargewatt_charging))
-        // Keep source independent of the signed battery-side wattage.
-        views.setTextViewText(R.id.widget_status, WidgetTextPolicy.chargerBadge(value))
         views.setContentDescription(
             R.id.widget_root,
-            "${WidgetTextPolicy.chargerBadge(value)}, ${value.statusText}, ${value.signedWatts}, " +
-                "${value.signedCurrent}, ${value.voltageText}"
+            "${value.statusText}, ${WidgetTextPolicy.temperature(value)}, ${WidgetTextPolicy.level(value)}, " +
+                "${value.signedWatts}, ${value.signedCurrent}, ${value.voltageText}"
         )
         val open = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
