@@ -181,11 +181,9 @@ object WidgetUpdater {
     @Synchronized fun refresh(context: Context, reading: BatteryReading? = null, force: Boolean = false) {
         if (WidgetRunState.isPaused(context)) return
         val ids = widgetIds(context)
-        if (ids.isEmpty() && !ChargeOverlay.isRunning) return // No visible meter: no battery-system call.
+        if (ids.isEmpty()) return // No installed widget: no battery-system call.
         val value = reading ?: BatterySampler.read(context, freshSnapshot = force)
         val unit = ChargeWattSettings.unit(context)
-        // Both displays share one sample; overlay has no separate polling loop.
-        ChargeOverlay.render(value, unit)
         if (ids.isEmpty()) return
         val theme = ChargeWattSettings.theme(context)
         val fingerprint = value.fingerprint(unit, theme)
