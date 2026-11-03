@@ -11,8 +11,6 @@ import java.util.concurrent.Executors
  * the dashboard is not open. Does not start a long-running background service.
  */
 class PowerConnectionReceiver : BroadcastReceiver() {
-    companion object { private const val TAG = "ChargeWattPower" }
-
     override fun onReceive(context: Context, intent: Intent) {
         if (!PowerConnectionPolicy.shouldRefresh(intent.action)) return
         if (WidgetRunState.isPaused(context)) return
@@ -47,6 +45,7 @@ class PowerConnectionReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "ChargeWattPower"
         private val executor = Executors.newSingleThreadExecutor { task ->
             Thread(task, "chargewatt-power-events").apply { isDaemon = true }
         }
