@@ -16,6 +16,7 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 /** Installed widget lifecycle owns its periodic fallback and sticky foreground sampler. */
 class ChargeWattWidget : AppWidgetProvider() {
@@ -111,7 +112,7 @@ object WidgetTextPolicy {
 
 
     fun temperature(reading: BatteryReading): String = reading.temperatureC
-        ?.let { String.format(java.util.Locale.US, "%02d°", kotlin.math.roundToInt(it)) } ?: "—°"
+        ?.let { String.format(java.util.Locale.US, "%02d°", it.roundToInt()) } ?: "—°"
     fun level(reading: BatteryReading): String = reading.level?.coerceIn(0, 100)?.let { "$it%" } ?: "—%"
     fun chargeIcon(reading: BatteryReading): WidgetChargeIcon = when (reading.mode) {
         ChargeMode.DISCHARGING -> WidgetChargeIcon.DISCHARGING
