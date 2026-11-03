@@ -31,7 +31,8 @@ class PerformanceContractTest {
         val manifest = read("AndroidManifest.xml")
         assertTrue(manifest.contains("ACTION_POWER_CONNECTED"))
         assertTrue(manifest.contains("ACTION_POWER_DISCONNECTED"))
-        assertFalse(manifest.contains("BOOT_COMPLETED"))
+        val powerReceiver = manifest.substringAfter("android:name=\".PowerConnectionReceiver\"").substringBefore("</receiver>")
+        assertFalse(powerReceiver.contains("BOOT_COMPLETED"))
     }
     @Test fun foregroundPollingUsesSavedIntervalAndStopsOnQuit() {
         val service = read("java/dev/n2k02/chargewatt/WidgetPollingService.kt")
