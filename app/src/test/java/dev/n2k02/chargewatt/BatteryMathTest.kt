@@ -22,6 +22,19 @@ class BatteryMathTest {
         assertEquals("Wireless Qi", example(ChargeMode.CHARGING)
             .copy(source = PowerSource.WIRELESS).powerSourceText)
     }
+    @Test fun wirelessQiDiagnosticsExposeTheRawPluggedExtraAndStatus() {
+        val details = BatteryEventDiagnostics.describe(
+            android.os.BatteryManager.BATTERY_STATUS_CHARGING,
+            android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS
+        )
+        assertTrue(details.contains("EXTRA_STATUS=2(CHARGING)"))
+        assertTrue(details.contains("EXTRA_PLUGGED=4(source=WIRELESS, wirelessQi=true)"))
+        val unplugged = BatteryEventDiagnostics.describe(
+            android.os.BatteryManager.BATTERY_STATUS_DISCHARGING, 0
+        )
+        assertTrue(unplugged.contains("wirelessQi=false"))
+    }
+
     @Test fun powerUsesMicroampsAndMillivolts() {
         assertEquals(1.7505, BatteryMath.watts(450000, 3890)!!, 0.0001)
         assertEquals(-1.7505, BatteryMath.watts(-450000, 3890)!!, 0.0001)
@@ -67,6 +80,15 @@ class BatteryMathTest {
         assertEquals(ChargeMode.CHARGING,
             BatteryMath.mode(android.os.BatteryManager.BATTERY_STATUS_CHARGING, 1))
     }
+    @Test fun batteryStatusChangesTriggerForcedRefreshEvenWhenPluggedFlagIsUnchanged() {
+        val tracker = WidgetPowerStateTracker()
+        val wireless = android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS
+        assertTrue(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_CHARGING, wireless))
+        assertFalse(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_CHARGING, wireless))
+        assertTrue(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_NOT_CHARGING, wireless))
+        assertTrue(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_DISCHARGING, wireless))
+    }
+
     @Test fun policyLimitsPartialUpdateHistory() {
         assertTrue(WidgetUpdatePolicy.needsFull(false, false, null, 1000L))
         assertTrue(WidgetUpdatePolicy.needsFull(true, false, 1000L, 1001L))
