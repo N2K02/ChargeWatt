@@ -44,11 +44,20 @@ class WidgetPollingService : Service() {
             when (intent.action) {
                 Intent.ACTION_BATTERY_CHANGED -> {
                     BatterySampler.remember(intent)
-                    val source = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
-                    if (source >= 0 && sourceTracker.changed(source)) requestPowerRefresh()
+                    val status = intent.getIntExtra(
+                        BatteryManager.EXTRA_STATUS,
+                        BatteryManager.BATTERY_STATUS_UNKNOWN
+                    )
+                    val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
+                    if (sourceTracker.changed(status, plugged)) {
+                        Log.i(TAG, "Battery state changed: ${BatteryEventDiagnostics.describe(status, plugged)}")
+                        requestPowerRefresh()
+                    }
                 }
-                Intent.ACTION_POWER_CONNECTED, Intent.ACTION_POWER_DISCONNECTED ->
+                Intent.ACTION_POWER_CONNECTED, Intent.ACTION_POWER_DISCONNECTED -> {
+                    Log.i(TAG, "Power event action=${intent.action}; ${BatterySampler.describeFreshSnapshot(applicationContext)}")
                     requestPowerRefresh()
+                }
             }
         }
     }
@@ -225,12 +234,15 @@ class WidgetPollingService : Service() {
     }
 }
 
-/** Only changing plugged flags justify a forced widget update. */
+/** Changes to charge status or the raw source flag justify a forced widget update. */
 internal class WidgetPowerStateTracker {
-    private var lastSource: Int? = null
-    fun changed(source: Int): Boolean {
-        if (lastSource == source) return false
-        lastSource = source
+    private var lastStatus: Int? = null
+    private var lastPlugged: Int? = null
+
+    fun changed(status: Int, plugged: Int): Boolean {
+        if (lastStatus == status && lastPlugged == plugged) return false
+        lastStatus = status
+        lastPlugged = plugged
         return true
     }
 }
