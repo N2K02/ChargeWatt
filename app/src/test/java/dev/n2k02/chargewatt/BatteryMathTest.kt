@@ -33,6 +33,10 @@ class BatteryMathTest {
             android.os.BatteryManager.BATTERY_STATUS_DISCHARGING, 0
         )
         assertTrue(unplugged.contains("wirelessQi=false"))
+        val missingPluggedExtra = BatteryEventDiagnostics.describe(
+            android.os.BatteryManager.BATTERY_STATUS_UNKNOWN, -1
+        )
+        assertTrue(missingPluggedExtra.contains("source=UNKNOWN, wirelessQi=false"))
     }
 
     @Test fun powerUsesMicroampsAndMillivolts() {
