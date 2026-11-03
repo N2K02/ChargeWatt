@@ -216,7 +216,6 @@ class WidgetPollingService : Service() {
         }
 
         fun stop(context: Context) {
-            ChargeOverlay.stop()
             try {
                 context.stopService(Intent(context, WidgetPollingService::class.java))
             } catch (error: RuntimeException) {
