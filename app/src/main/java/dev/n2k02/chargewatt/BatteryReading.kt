@@ -35,18 +35,15 @@ data class BatteryReading(
         PowerSource.UNKNOWN -> "Unknown charger"
     }
     val statusText: String get() = when {
-        source == PowerSource.WIRELESS && (
-            (currentMa != null && currentMa < 0.0) ||
-                (currentMa == null && mode == ChargeMode.DISCHARGING)
-        ) -> "Wireless Qi · net battery drain"
-        source == PowerSource.WIRELESS && mode == ChargeMode.FULL -> "Wireless Qi · Full"
-        source == PowerSource.WIRELESS -> "Wireless Qi"
-        mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
+        // Charge state is authoritative for whether charging is actually happening.
         mode == ChargeMode.DISCHARGING -> "Discharging"
+        mode == ChargeMode.FULL && source == PowerSource.WIRELESS -> "Wireless Qi · Full"
         mode == ChargeMode.FULL -> "Full"
         mode == ChargeMode.IDLE -> if (source == PowerSource.UNKNOWN) "State unknown" else "Not charging"
+        mode == ChargeMode.CHARGING && source == PowerSource.WIRELESS && (currentMa ?: 0.0) < 0.0 ->
+            "Wireless Qi · net battery drain"
+        mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
         mode == ChargeMode.CHARGING -> when (source) {
-
             PowerSource.WIRELESS -> "Wireless Qi"
             PowerSource.AC -> "AC charging"
             PowerSource.USB -> "USB charging"
