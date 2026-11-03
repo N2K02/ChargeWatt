@@ -22,7 +22,7 @@ Watts = signed battery current in microamperes multiplied by battery voltage in 
 
 ## CPU and GPU review
 
-- Foreground listener caches battery broadcasts for voltage, temperature, level and state; only signed instantaneous current is queried on a dedicated I/O coroutine every 1–10 seconds while RESUMED.
+- The foreground widget service caches battery broadcasts for voltage, temperature, level and state; it queries signed instantaneous current on a dedicated I/O coroutine at the saved 1–10 second interval while a widget is installed.
 - The 1-second setting remains the default. UI state is updated only when readings change.
 - Widget redraws are fingerprint-cached in memory rather than persistently written to SharedPreferences every second. Lightweight text-only partial RemoteViews are sent for changes, with a periodic full refresh to bound system_server history.
 - Background charge/discharge transitions are shown at the next permitted periodic update. Android 8+ restrictions prevent relying on manifest-declared implicit power broadcasts for immediate notification-free updates.
