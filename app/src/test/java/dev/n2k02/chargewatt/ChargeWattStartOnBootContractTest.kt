@@ -1,16 +1,17 @@
 package dev.n2k02.chargewatt
 
+import java.io.File
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ChargeWattStartOnBootContractTest {
+    private fun source(path: String): String = listOf(File(path), File("../$path")).first { it.isFile }.readText()
+
     @Test fun bootRestoreDefaultsEnabledAndOnlyStartsForInstalledWidgets() {
-        val root = File("src/main")
-        val settings = File(root, "java/dev/n2k02/chargewatt/BatteryReading.kt").readText()
-        val receiver = File(root, "java/dev/n2k02/chargewatt/ChargeWattBootReceiver.kt").readText()
-        val manifest = File(root, "AndroidManifest.xml").readText()
-        val activity = File(root, "java/dev/n2k02/chargewatt/MainActivity.kt").readText()
+        val settings = source("app/src/main/java/dev/n2k02/chargewatt/BatteryReading.kt")
+        val receiver = source("app/src/main/java/dev/n2k02/chargewatt/ChargeWattBootReceiver.kt")
+        val manifest = source("app/src/main/AndroidManifest.xml")
+        val activity = source("app/src/main/java/dev/n2k02/chargewatt/MainActivity.kt")
         assertTrue(settings.contains("getBoolean(KEY_START_ON_BOOT, true)"))
         assertTrue(settings.contains("putBoolean(KEY_START_ON_BOOT, value)"))
         assertTrue(receiver.contains("if (!ChargeWattSettings.startOnBoot(context)) return"))
