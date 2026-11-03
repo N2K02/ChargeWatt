@@ -35,11 +35,16 @@ class ChargeWattWidget : AppWidgetProvider() {
         WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.cancelFallback(context)
         WidgetUpdater.clearAll()
+        WidgetPollingService.stop(context)
         super.onDisabled(context)
     }
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         WidgetUpdater.invalidateWidgetIds()
         WidgetUpdater.clearDeleted(appWidgetIds)
+        if (WidgetUpdater.widgetIds(context).isEmpty()) {
+            WidgetUpdater.cancelFallback(context)
+            WidgetPollingService.stop(context)
+        }
         super.onDeleted(context, appWidgetIds)
     }
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
