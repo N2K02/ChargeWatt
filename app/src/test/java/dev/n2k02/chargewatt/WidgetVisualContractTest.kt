@@ -22,6 +22,8 @@ class WidgetVisualContractTest {
         for (theme in listOf("dark", "transparent", "compact")) {
             val root = xml("layout/widget_$theme.xml")
             assertEquals("LinearLayout", root.tagName)
+            assertEquals("RemoteViews must use supported layout containers", 1, root.getElementsByTagName("RelativeLayout").length)
+            assertEquals("RemoteViews must not inflate generic View spacers", 0, root.getElementsByTagName("View").length)
             assertTrue(root.getAttribute("android:background").endsWith("widget_bg_$theme"))
             val imageNodes = root.getElementsByTagName("ImageView")
             val icons = (0 until imageNodes.length).map { imageNodes.item(it) as Element }
