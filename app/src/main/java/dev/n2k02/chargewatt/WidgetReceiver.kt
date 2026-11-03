@@ -100,13 +100,18 @@ object WidgetTextPolicy {
         if (voltageV == null || !voltageV.isFinite()) "—V"
         else String.format(java.util.Locale.US, "%.2fV", voltageV)
 
-    /** Always show the actual power-source type, never infer it from current direction. */
-    fun chargerBadge(reading: BatteryReading): String = when (reading.source) {
-        PowerSource.WIRELESS -> "Wireless Qi"
-        PowerSource.AC -> "AC charging"
-        PowerSource.USB -> "USB charging"
-        PowerSource.BATTERY -> "On battery"
-        PowerSource.UNKNOWN -> "Source unknown"
+    /** Report the active charge state before showing a potentially stale source flag. */
+    fun chargerBadge(reading: BatteryReading): String = when (reading.mode) {
+        ChargeMode.CHARGING -> when (reading.source) {
+            PowerSource.WIRELESS -> "Wireless Qi"
+            PowerSource.AC -> "AC charging"
+            PowerSource.USB -> "USB charging"
+            PowerSource.BATTERY -> "Charging"
+            PowerSource.UNKNOWN -> "Source unknown"
+        }
+        ChargeMode.FULL -> "Full"
+        ChargeMode.DISCHARGING -> "On battery"
+        ChargeMode.IDLE -> if (reading.source == PowerSource.UNKNOWN) "Source unknown" else "Not charging"
     }
 
     fun primary(reading: BatteryReading, unit: String): String =
