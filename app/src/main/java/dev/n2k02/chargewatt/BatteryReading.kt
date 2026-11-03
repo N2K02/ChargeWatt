@@ -95,7 +95,6 @@ object ChargeWattSettings {
     private const val KEY_INTERVAL = "refresh_seconds"
     private const val KEY_THEME = "widget_theme"
     private const val KEY_UNIT = "primary_unit"
-    private const val KEY_OVERLAY = "floating_overlay_enabled"
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
     fun interval(context: Context): Int =
         BatteryMath.refreshSeconds(prefs(context).getInt(KEY_INTERVAL, BatteryMath.DEFAULT_REFRESH_SECONDS))
@@ -105,10 +104,6 @@ object ChargeWattSettings {
     fun theme(context: Context): String = prefs(context).getString(KEY_THEME, "dark") ?: "dark"
     fun setTheme(context: Context, value: String) {
         prefs(context).edit().putString(KEY_THEME, if (value == "transparent") value else "dark").apply()
-    }
-    fun overlayEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_OVERLAY, false)
-    fun setOverlayEnabled(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean(KEY_OVERLAY, enabled).apply()
     }
     fun removeLegacyEvents(context: Context) {
         val settings = prefs(context)
