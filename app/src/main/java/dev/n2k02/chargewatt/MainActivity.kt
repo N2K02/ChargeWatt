@@ -69,10 +69,10 @@ class MainActivity : ComponentActivity() {
         WidgetPollingActivityState.resumed = true
         ChargeWattUpdater.onResume(this)
         // If the user has just granted overlay permission, start the meter and
-        // reuse the ordinary polling service. No notification is posted.
+        // reuse the widget's foreground sampling service.
         if (!WidgetRunState.isPaused(this) && ChargeWattSettings.overlayEnabled(this) &&
             Settings.canDrawOverlays(this) && ChargeOverlay.start(this)) {
-            WidgetPollingService.startWhileVisible(this)
+            WidgetPollingService.startIfNeeded(this)
         }
     }
     override fun onPause() {
@@ -81,9 +81,8 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStart() {
         super.onStart()
-        // Start only while the Activity is visible; Android may stop the
-        // ordinary service after the app goes idle. No notification is posted.
-        WidgetPollingService.startWhileVisible(this)
+        // Start while the Activity is visible so Android permits foreground promotion.
+        WidgetPollingService.startIfNeeded(this)
         // Sticky battery broadcasts are best effort. Registration failure must
         // not terminate the Activity; the sampler can query a snapshot instead.
         try {
@@ -362,7 +361,7 @@ private fun ChargeWattScreen(
                                     Column(Modifier.weight(1f)) {
                                         Text("Floating meter", style = MaterialTheme.typography.titleMedium)
                                         Text(
-                                            "Movable display over other apps. Uses the same 1–10s battery samples without notifications.",
+                                            "Movable display over other apps. Uses the widget's saved sampling interval.",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -373,7 +372,7 @@ private fun ChargeWattScreen(
                                         if (enabled) {
                                             if (Settings.canDrawOverlays(context)) {
                                                 ChargeOverlay.start(context)
-                                                WidgetPollingService.startWhileVisible(context)
+                                                WidgetPollingService.startIfNeeded(context)
                                                 onRefresh()
                                             } else {
                                                 context.startActivity(
@@ -391,7 +390,7 @@ private fun ChargeWattScreen(
                                 }
                                 if (overlayEnabled && !overlayPermissionGranted) {
                                     Text(
-                                        "Allow Display over other apps for chargeWatt, then return here. Android may still stop notification-free background updates.",
+                                        "Allow Display over other apps for chargeWatt, then return here. Background sampling uses an ongoing foreground-service notification.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = ChargeWattPalette.Discharging
                                     )
@@ -422,7 +421,7 @@ private fun ChargeWattScreen(
                                     Text("10 sec", style = MaterialTheme.typography.labelSmall)
                                 }
                                 Text(
-                                    "1–10s while the app is open or the optional floating meter/background service is allowed to run. Android may stop notification-free services; charging events and periodic widget work remain as fallbacks.",
+                                    "The widget samples every saved 1–10 seconds while its foreground service is active. Android requires an ongoing service notification; system idle policies can still delay work.",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
