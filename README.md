@@ -7,16 +7,16 @@ chargeWatt is a minimal Android 1×1 home-screen charging and discharging widget
 - Shows charging (green) and discharging (amber) automatically, including wireless Qi charging. Current sign comes from BatteryManager, so a connected charger with net drain is correctly displayed as negative.
 - Shows battery-side watts (W), current (mA), voltage (V), and battery percentage.
 - Dark or transparent widget themes.
-- Optional draggable glass power overlay (Settings → Widget display → Floating meter), reusing the same battery samples. Requires Android's Display over other apps permission; no notification.
+- A sticky foreground service samples battery state for the installed widget at the saved interval and updates the widget from each sample.
 - Choose W or mA as the main value.
 - User-selectable refresh 1–10 seconds, default 2 seconds.
 - One consistent mRadio-style header above the status bar, Home, Settings (Widget display, Battery details, About & updates), and Quit. Settings uses compact icon-aligned ListItem rows; Android Back returns from each submenu.
-- No notifications, notification permission, foreground service, wake locks, continuous animation, or network telemetry.
+- No notification permission, wake locks, continuous animation, or network telemetry. Android requires the foreground service to provide an ongoing notification while the widget sampler is active.
 - Android 8+ (minSdk 26), Android 17 compile/target API 37.
 
 ## Important timing and measurement limits
 
-The 1-second interval is implemented when the dashboard is resumed. The UI lifecycle cancels polling when the screen is paused; only value changes cause RemoteViews widget redraw. In the background, Android cannot guarantee second-by-second widget updates without a foreground-running service. An optional visible floating meter improves process priority but does not override Android background restrictions; power-change broadcasts and WorkManager remain fallbacks. The widget is updated by a WorkManager periodic fallback (minimum 15 minutes). The launcher may delay those updates.
+The selected 1–10 second interval drives the sticky foreground service while at least one widget is installed, including while the app dashboard is paused. Power-change broadcasts trigger immediate refreshes, and WorkManager remains a periodic fallback (minimum 15 minutes). Android and the launcher still control scheduling during deep idle; the service cannot guarantee exact second-by-second timing in every power state.
 
 Watts = signed battery current in microamperes multiplied by battery voltage in millivolts, divided by 1,000,000,000. Current direction determines the sign. This is **battery-side power**, not the power delivered by the wall charger, USB brick, or Qi pad. Unsupported battery current reports as unavailable rather than a fake value.
 
