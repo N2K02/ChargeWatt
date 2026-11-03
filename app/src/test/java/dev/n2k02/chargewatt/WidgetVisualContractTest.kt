@@ -54,11 +54,14 @@ class WidgetVisualContractTest {
         for (theme in listOf("dark", "transparent", "compact")) {
             val root = xml("drawable/widget_bg_$theme.xml")
             assertEquals("shape", root.tagName)
-            assertEquals(1, root.getElementsByTagName("gradient").length)
+            assertEquals("Transparent widgets must not add a fill", if (theme == "transparent") 0 else 1,
+                root.getElementsByTagName("gradient").length)
             assertEquals(1, root.getElementsByTagName("stroke").length)
             assertEquals(1, root.getElementsByTagName("corners").length)
             val noBorder = xml("drawable/widget_bg_${theme}_borderless.xml")
             assertEquals(0, noBorder.getElementsByTagName("stroke").length)
+            assertEquals("Transparent borderless widgets must remain fully clear",
+                if (theme == "transparent") 0 else 1, noBorder.getElementsByTagName("gradient").length)
             assertEquals(1, noBorder.getElementsByTagName("corners").length)
         }
         val source = listOf(File("src/main/java/dev/n2k02/chargewatt/WidgetReceiver.kt"),
