@@ -4,8 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.net.Uri
-import android.provider.Settings
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
@@ -68,12 +66,6 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         WidgetPollingActivityState.resumed = true
         ChargeWattUpdater.onResume(this)
-        // If the user has just granted overlay permission, start the meter and
-        // reuse the ordinary polling service. No notification is posted.
-        if (!WidgetRunState.isPaused(this) && ChargeWattSettings.overlayEnabled(this) &&
-            Settings.canDrawOverlays(this) && ChargeOverlay.start(this)) {
-            WidgetPollingService.startWhileVisible(this)
-        }
     }
     override fun onPause() {
         WidgetPollingActivityState.resumed = false
@@ -81,9 +73,8 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStart() {
         super.onStart()
-        // Start only while the Activity is visible; Android may stop the
-        // ordinary service after the app goes idle. No notification is posted.
-        WidgetPollingService.startWhileVisible(this)
+        // Start while the Activity is visible so Android permits foreground promotion.
+        WidgetPollingService.startIfNeeded(this)
         // Sticky battery broadcasts are best effort. Registration failure must
         // not terminate the Activity; the sampler can query a snapshot instead.
         try {
@@ -133,7 +124,6 @@ class MainActivity : ComponentActivity() {
                 onQuit = {
                     WidgetRunState.setPaused(this, true)
                     WidgetPollingService.stop(this)
-                    ChargeOverlay.stop()
                     try {
                         WidgetUpdater.cancelFallback(this)
                     } catch (e: RuntimeException) {
@@ -206,8 +196,8 @@ private fun ChargeWattScreen(
     var interval by remember { mutableIntStateOf(ChargeWattSettings.interval(context)) }
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
-    var overlayEnabled by remember { mutableStateOf(ChargeWattSettings.overlayEnabled(context)) }
-    val overlayPermissionGranted = Settings.canDrawOverlays(context)
+    var startOnBoot by remember { mutableStateOf(ChargeWattSettings.startOnBoot(context)) }
+    var showBorder by remember { mutableStateOf(ChargeWattSettings.showBorder(context)) }
 
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
@@ -322,9 +312,13 @@ private fun ChargeWattScreen(
                             modifier = Modifier.padding(start = 16.dp, top = 6.dp, bottom = 12.dp)
                         )
                         SettingsMenuRow(
-                            "Widget display", "Theme, power units and refresh interval",
+                            "Widget display", "Theme, border, power units and refresh interval",
                             Icons.Default.Tune
                         ) { page = "Widget" }
+                        SettingsMenuRow(
+                            "Start on boot", if (startOnBoot) "Widget service starts after phone restart" else "Start the widget service manually after restart",
+                            Icons.Default.BatteryChargingFull,
+                        ) { page = "Startup" }
                         SettingsMenuRow(
                             "Battery details", "Current, voltage, health and cycle count",
                             Icons.Default.Info
@@ -341,7 +335,7 @@ private fun ChargeWattScreen(
                         ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Appearance", style = MaterialTheme.typography.titleMedium)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     FilterChip(
                                         selected = theme == "dark", onClick = {
                                             theme = "dark"; ChargeWattSettings.setTheme(context, theme); onRefresh()
@@ -352,50 +346,24 @@ private fun ChargeWattScreen(
                                             theme = "transparent"; ChargeWattSettings.setTheme(context, theme); onRefresh()
                                         }, label = { Text("Transparent") }
                                     )
-                                }
-                                HorizontalDivider()
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text("Floating meter", style = MaterialTheme.typography.titleMedium)
-                                        Text(
-                                            "Movable display over other apps. Uses the same 1–10s battery samples without notifications.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Switch(checked = overlayEnabled, onCheckedChange = { enabled ->
-                                        overlayEnabled = enabled
-                                        ChargeWattSettings.setOverlayEnabled(context, enabled)
-                                        if (enabled) {
-                                            if (Settings.canDrawOverlays(context)) {
-                                                ChargeOverlay.start(context)
-                                                WidgetPollingService.startWhileVisible(context)
-                                                onRefresh()
-                                            } else {
-                                                context.startActivity(
-                                                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                                        Uri.parse("package:${context.packageName}"))
-                                                )
-                                            }
-                                        } else {
-                                            ChargeOverlay.stop()
-                                            if (WidgetUpdater.widgetIds(context).isEmpty()) {
-                                                WidgetPollingService.stop(context)
-                                            }
-                                        }
-                                    })
-                                }
-                                if (overlayEnabled && !overlayPermissionGranted) {
-                                    Text(
-                                        "Allow Display over other apps for chargeWatt, then return here. Android may still stop notification-free background updates.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = ChargeWattPalette.Discharging
+                                    FilterChip(
+                                        selected = theme == "compact", onClick = {
+                                            theme = "compact"; ChargeWattSettings.setTheme(context, theme); onRefresh()
+                                        }, label = { Text("Compact") }
                                     )
                                 }
+                                ListItem(
+                                    headlineContent = { Text("Widget border") },
+                                    supportingContent = { Text(if (showBorder) "Outline visible" else "Outline hidden") },
+                                    trailingContent = {
+                                        Switch(checked = showBorder, onCheckedChange = { enabled ->
+                                            showBorder = enabled
+                                            ChargeWattSettings.setShowBorder(context, enabled)
+                                            onRefresh()
+                                        })
+                                    }
+                                )
+                                HorizontalDivider()
                                 HorizontalDivider()
                                 Text("Primary speed unit", style = MaterialTheme.typography.titleMedium)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -422,10 +390,21 @@ private fun ChargeWattScreen(
                                     Text("10 sec", style = MaterialTheme.typography.labelSmall)
                                 }
                                 Text(
-                                    "1–10s while the app is open or the optional floating meter/background service is allowed to run. Android may stop notification-free services; charging events and periodic widget work remain as fallbacks.",
+                                    "The widget samples every saved 1–10 seconds while its foreground service is active. Android requires an ongoing service notification; system idle policies can still delay work.",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                    "Startup" -> {
+                        SectionLabel("Startup")
+                        ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                            ListItem(
+                                headlineContent = { Text("Start on boot") },
+                                supportingContent = { Text("Automatically resume widget sampling after your phone restarts. A ChargeWatt widget must be installed.") },
+                                leadingContent = { Icon(Icons.Default.BatteryChargingFull, contentDescription = null) },
+                                trailingContent = { Switch(checked = startOnBoot, onCheckedChange = { startOnBoot = it; ChargeWattSettings.setStartOnBoot(context, it) }) },
+                            )
                         }
                     }
                     "Details" -> {

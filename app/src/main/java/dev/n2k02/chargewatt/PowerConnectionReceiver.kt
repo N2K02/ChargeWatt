@@ -20,15 +20,14 @@ class PowerConnectionReceiver : BroadcastReceiver() {
         try {
             executor.execute {
                 try {
-                    // Read a fresh sticky battery snapshot, not the foreground
-                    // activity's cached ACTION_BATTERY_CHANGED intent.
-                    BatterySampler.clear()
-                    WidgetUpdater.refresh(appContext, force = true)
-                    // Power events may precede the updated battery snapshot.
-                    for (attempt in 0 until 2) {
-                        Thread.sleep(1_500L)
+                    Log.i(TAG, "Power event action=${intent.action}; ${BatterySampler.describeFreshSnapshot(appContext)}")
+                    // BatteryManager may publish the new source shortly after the power event.
+                    // Read a fresh sticky snapshot at 0s, 1.5s, and 3s.
+                    for (attempt in 0..2) {
+                        if (attempt > 0) Thread.sleep(1_500L)
                         if (WidgetRunState.isPaused(appContext)) break
                         BatterySampler.clear()
+                        Log.i(TAG, "Power refresh attempt=${attempt + 1}; ${BatterySampler.describeFreshSnapshot(appContext)}")
                         WidgetUpdater.refresh(appContext, force = true)
                     }
                 } catch (interrupted: InterruptedException) {
@@ -46,6 +45,7 @@ class PowerConnectionReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "ChargeWattPower"
         private val executor = Executors.newSingleThreadExecutor { task ->
             Thread(task, "chargewatt-power-events").apply { isDaemon = true }
         }

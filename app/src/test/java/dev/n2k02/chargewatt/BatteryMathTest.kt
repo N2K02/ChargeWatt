@@ -22,6 +22,23 @@ class BatteryMathTest {
         assertEquals("Wireless Qi", example(ChargeMode.CHARGING)
             .copy(source = PowerSource.WIRELESS).powerSourceText)
     }
+    @Test fun wirelessQiDiagnosticsExposeTheRawPluggedExtraAndStatus() {
+        val details = BatteryEventDiagnostics.describe(
+            android.os.BatteryManager.BATTERY_STATUS_CHARGING,
+            android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS
+        )
+        assertTrue(details.contains("EXTRA_STATUS=2(CHARGING)"))
+        assertTrue(details.contains("EXTRA_PLUGGED=4(source=WIRELESS, wirelessQi=true)"))
+        val unplugged = BatteryEventDiagnostics.describe(
+            android.os.BatteryManager.BATTERY_STATUS_DISCHARGING, 0
+        )
+        assertTrue(unplugged.contains("wirelessQi=false"))
+        val missingPluggedExtra = BatteryEventDiagnostics.describe(
+            android.os.BatteryManager.BATTERY_STATUS_UNKNOWN, -1
+        )
+        assertTrue(missingPluggedExtra.contains("source=UNKNOWN, wirelessQi=false"))
+    }
+
     @Test fun powerUsesMicroampsAndMillivolts() {
         assertEquals(1.7505, BatteryMath.watts(450000, 3890)!!, 0.0001)
         assertEquals(-1.7505, BatteryMath.watts(-450000, 3890)!!, 0.0001)
@@ -67,6 +84,15 @@ class BatteryMathTest {
         assertEquals(ChargeMode.CHARGING,
             BatteryMath.mode(android.os.BatteryManager.BATTERY_STATUS_CHARGING, 1))
     }
+    @Test fun batteryStatusChangesTriggerForcedRefreshEvenWhenPluggedFlagIsUnchanged() {
+        val tracker = WidgetPowerStateTracker()
+        val wireless = android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS
+        assertTrue(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_CHARGING, wireless))
+        assertFalse(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_CHARGING, wireless))
+        assertTrue(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_NOT_CHARGING, wireless))
+        assertTrue(tracker.changed(android.os.BatteryManager.BATTERY_STATUS_DISCHARGING, wireless))
+    }
+
     @Test fun policyLimitsPartialUpdateHistory() {
         assertTrue(WidgetUpdatePolicy.needsFull(false, false, null, 1000L))
         assertTrue(WidgetUpdatePolicy.needsFull(true, false, 1000L, 1001L))
@@ -85,8 +111,10 @@ class BatteryMathTest {
             currentMa = -350.0, powerW = -1.36, source = PowerSource.WIRELESS
         )
         assertEquals("Wireless Qi · net battery drain", plugged.statusText)
-        assertEquals("Wireless Qi · net battery drain",
+        assertEquals("Discharging",
             plugged.copy(mode = ChargeMode.DISCHARGING).statusText)
+        assertEquals("Not charging",
+            plugged.copy(mode = ChargeMode.IDLE).statusText)
         assertEquals("Wireless Qi", plugged.copy(currentMa = 350.0,
             powerW = 1.36, mode = ChargeMode.CHARGING).statusText)
         assertEquals(PowerSource.WIRELESS,
@@ -96,24 +124,34 @@ class BatteryMathTest {
         assertEquals("−1.36W", WidgetTextPolicy.primary(plugged, "W"))
         assertEquals("−350mA", WidgetTextPolicy.primary(plugged, "mA"))
     }
-    @Test fun readableSourceBadgeAndCompactVoltage() {
-        val chargingQi = example(ChargeMode.CHARGING).copy(
-            source = PowerSource.WIRELESS, currentMa = 1270.0)
-        assertEquals("Wireless Qi", WidgetTextPolicy.chargerBadge(chargingQi))
-        assertEquals("Wireless Qi", WidgetTextPolicy.chargerBadge(
-            chargingQi.copy(currentMa = -200.0, mode = ChargeMode.DISCHARGING)))
-        assertEquals("AC charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.AC)))
-        assertEquals("USB charging", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.USB)))
-        assertEquals("On battery", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.BATTERY)))
-        assertEquals("Source unknown", WidgetTextPolicy.chargerBadge(chargingQi.copy(source = PowerSource.UNKNOWN)))
+    @Test fun compactVoltageAndWidgetStateIcons() {
         assertEquals("3.94V", WidgetTextPolicy.voltage(3.94))
         assertEquals("—V", WidgetTextPolicy.voltage(null))
+        val sample = example(ChargeMode.CHARGING)
+        assertEquals(WidgetChargeIcon.AC,
+            WidgetTextPolicy.chargeIcon(sample.copy(source = PowerSource.AC)))
+        assertEquals(WidgetChargeIcon.WIRELESS,
+            WidgetTextPolicy.chargeIcon(sample.copy(source = PowerSource.WIRELESS)))
+        assertEquals(WidgetChargeIcon.DISCHARGING,
+            WidgetTextPolicy.chargeIcon(sample.copy(mode = ChargeMode.DISCHARGING)))
+        assertEquals(WidgetChargeIcon.FULL,
+            WidgetTextPolicy.chargeIcon(sample.copy(mode = ChargeMode.FULL)))
+        assertEquals(WidgetChargeIcon.IDLE,
+            WidgetTextPolicy.chargeIcon(sample.copy(mode = ChargeMode.IDLE)))
     }
-    @Test fun batteryLevelChangeDoesNotTriggerInvisibleWidgetUpdate() {
+    @Test fun batteryLevelAndTemperatureChangesRefreshVisibleWidgetMetadata() {
         val first = example(ChargeMode.CHARGING)
-        assertEquals(first.fingerprint("W", "dark"),
+        assertNotEquals(first.fingerprint("W", "dark"),
             first.copy(level = 70).fingerprint("W", "dark"))
+        assertNotEquals(first.fingerprint("W", "dark"),
+            first.copy(temperatureC = 39.2).fingerprint("W", "dark"))
+        assertEquals("39°", WidgetTextPolicy.temperature(first.copy(temperatureC = 38.7)))
+        assertEquals("07°", WidgetTextPolicy.temperature(first.copy(temperatureC = 7.2)))
+        assertEquals("82%", WidgetTextPolicy.level(first.copy(level = 82)))
+        assertEquals("—°", WidgetTextPolicy.temperature(first.copy(temperatureC = null)))
+        assertEquals("—%", WidgetTextPolicy.level(first.copy(level = null)))
     }
+
     @Test fun currentAbbreviationPreventsFourDigitClipping() {
         assertEquals("−1.33A", WidgetTextPolicy.current(-1331.0))
         assertEquals("+2.45A", WidgetTextPolicy.current(2450.0))

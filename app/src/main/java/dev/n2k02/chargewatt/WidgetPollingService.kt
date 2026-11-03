@@ -1,10 +1,15 @@
 package dev.n2k02.chargewatt
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
@@ -19,10 +24,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Best-effort, notification-free polling while Android permits background services.
- *
- * Not a foreground service: Android can stop it after the app becomes idle.
- * Charger broadcasts and WorkManager remain fallbacks, not 1-second guarantees.
+ * Foreground battery sampling for installed widgets only.
+ * The saved 1–10 second interval drives each sample/update cycle; Android still
+ * controls scheduling during deep idle and may stop any service.
  */
 class WidgetPollingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -39,11 +43,20 @@ class WidgetPollingService : Service() {
             when (intent.action) {
                 Intent.ACTION_BATTERY_CHANGED -> {
                     BatterySampler.remember(intent)
-                    val source = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
-                    if (source >= 0 && sourceTracker.changed(source)) requestPowerRefresh()
+                    val status = intent.getIntExtra(
+                        BatteryManager.EXTRA_STATUS,
+                        BatteryManager.BATTERY_STATUS_UNKNOWN
+                    )
+                    val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
+                    if (sourceTracker.changed(status, plugged)) {
+                        Log.i(TAG, "Battery state changed: ${BatteryEventDiagnostics.describe(status, plugged)}")
+                        requestPowerRefresh()
+                    }
                 }
-                Intent.ACTION_POWER_CONNECTED, Intent.ACTION_POWER_DISCONNECTED ->
+                Intent.ACTION_POWER_CONNECTED, Intent.ACTION_POWER_DISCONNECTED -> {
+                    Log.i(TAG, "Power event action=${intent.action}; ${BatterySampler.describeFreshSnapshot(applicationContext)}")
                     requestPowerRefresh()
+                }
             }
         }
     }
@@ -64,6 +77,50 @@ class WidgetPollingService : Service() {
             receiverRegistered = true
         } catch (error: RuntimeException) {
             Log.w(TAG, "Live battery receiver registration failed", error)
+        }
+    }
+
+    private fun hasActiveWidget(): Boolean =
+        WidgetUpdater.widgetIds(this).isNotEmpty()
+
+    private fun promoteToForeground() {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "Battery widget updates",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Keeps ChargeWatt battery readings and its widget current."
+                    setShowBadge(false)
+                }
+            )
+        }
+        val openApp = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = Notification.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("ChargeWatt is active")
+            .setContentText("Updating battery readings at the saved interval")
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(openApp)
+            .build()
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
         }
     }
 
@@ -92,13 +149,14 @@ class WidgetPollingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (WidgetRunState.isPaused(this)) {
-            ChargeOverlay.stop()
+        if (WidgetRunState.isPaused(this) || !hasActiveWidget()) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        ChargeOverlay.start(this)
-        if (WidgetUpdater.widgetIds(this).isEmpty() && !ChargeOverlay.isRunning) {
+        try {
+            promoteToForeground()
+        } catch (error: RuntimeException) {
+            Log.e(TAG, "Unable to promote battery sampler to foreground", error)
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -106,7 +164,7 @@ class WidgetPollingService : Service() {
             polling = scope.launch {
                 while (isActive) {
                     if (WidgetRunState.isPaused(applicationContext) ||
-                        (WidgetUpdater.widgetIds(applicationContext).isEmpty() && !ChargeOverlay.isRunning)) {
+                        WidgetUpdater.widgetIds(applicationContext).isEmpty()) {
                         stopSelf()
                         break
                     }
@@ -135,7 +193,7 @@ class WidgetPollingService : Service() {
             receiverRegistered = false
         }
         scope.cancel()
-        ChargeOverlay.stop()
+        stopForeground(STOP_FOREGROUND_REMOVE)
         polling = null
         pendingPowerRefresh = null
         super.onDestroy()
@@ -143,19 +201,21 @@ class WidgetPollingService : Service() {
 
     companion object {
         private const val TAG = "ChargeWattPolling"
+        private const val CHANNEL_ID = "chargewatt_widget_updates"
+        private const val NOTIFICATION_ID = 4001
 
-        /** Must be called from a visible Activity, not from a background receiver. */
-        fun startWhileVisible(context: Context) {
-            if (WidgetRunState.isPaused(context) || (WidgetUpdater.widgetIds(context).isEmpty() && !ChargeOverlay.isRunning)) return
+        /** Start from a visible Activity or an explicit widget lifecycle event. */
+        fun startIfNeeded(context: Context) {
+            val app = context.applicationContext
+            if (WidgetRunState.isPaused(app) || WidgetUpdater.widgetIds(app).isEmpty()) return
             try {
-                context.startService(Intent(context, WidgetPollingService::class.java))
+                app.startForegroundService(Intent(app, WidgetPollingService::class.java))
             } catch (error: RuntimeException) {
-                Log.w(TAG, "Background service start unavailable", error)
+                Log.w(TAG, "Foreground battery service start unavailable", error)
             }
         }
 
         fun stop(context: Context) {
-            ChargeOverlay.stop()
             try {
                 context.stopService(Intent(context, WidgetPollingService::class.java))
             } catch (error: RuntimeException) {
@@ -165,12 +225,15 @@ class WidgetPollingService : Service() {
     }
 }
 
-/** Only changing plugged flags justify a forced widget update. */
+/** Changes to charge status or the raw source flag justify a forced widget update. */
 internal class WidgetPowerStateTracker {
-    private var lastSource: Int? = null
-    fun changed(source: Int): Boolean {
-        if (lastSource == source) return false
-        lastSource = source
+    private var lastStatus: Int? = null
+    private var lastPlugged: Int? = null
+
+    fun changed(status: Int, plugged: Int): Boolean {
+        if (lastStatus == status && lastPlugged == plugged) return false
+        lastStatus = status
+        lastPlugged = plugged
         return true
     }
 }

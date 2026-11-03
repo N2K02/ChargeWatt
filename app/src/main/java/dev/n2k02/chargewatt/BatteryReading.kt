@@ -35,18 +35,15 @@ data class BatteryReading(
         PowerSource.UNKNOWN -> "Unknown charger"
     }
     val statusText: String get() = when {
-        source == PowerSource.WIRELESS && (
-            (currentMa != null && currentMa < 0.0) ||
-                (currentMa == null && mode == ChargeMode.DISCHARGING)
-        ) -> "Wireless Qi · net battery drain"
-        source == PowerSource.WIRELESS && mode == ChargeMode.FULL -> "Wireless Qi · Full"
-        source == PowerSource.WIRELESS -> "Wireless Qi"
-        mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
+        // Charge state is authoritative for whether charging is actually happening.
         mode == ChargeMode.DISCHARGING -> "Discharging"
+        mode == ChargeMode.FULL && source == PowerSource.WIRELESS -> "Wireless Qi · Full"
         mode == ChargeMode.FULL -> "Full"
         mode == ChargeMode.IDLE -> if (source == PowerSource.UNKNOWN) "State unknown" else "Not charging"
+        mode == ChargeMode.CHARGING && source == PowerSource.WIRELESS && (currentMa ?: 0.0) < 0.0 ->
+            "Wireless Qi · net battery drain"
+        mode == ChargeMode.CHARGING && (currentMa ?: 0.0) < 0.0 -> "Plugged in · net drain"
         mode == ChargeMode.CHARGING -> when (source) {
-
             PowerSource.WIRELESS -> "Wireless Qi"
             PowerSource.AC -> "AC charging"
             PowerSource.USB -> "USB charging"
@@ -58,7 +55,7 @@ data class BatteryReading(
     fun sameContent(other: BatteryReading): Boolean =
         copy(sampledAtMs = 0L) == other.copy(sampledAtMs = 0L)
     fun fingerprint(unit: String, theme: String): String =
-        listOf(mode, source, signedWatts, signedCurrent, voltageText, theme, unit).joinToString("|")
+        listOf(mode, source, signedWatts, signedCurrent, voltageText, tempText, levelText, theme, unit).joinToString("|")
 }
 
 object BatteryMath {
@@ -96,10 +93,15 @@ object BatteryMath {
 object ChargeWattSettings {
     private const val FILE = "chargewatt"
     private const val KEY_INTERVAL = "refresh_seconds"
+    private const val KEY_START_ON_BOOT = "start_on_boot"
     private const val KEY_THEME = "widget_theme"
+    private const val KEY_BORDER = "widget_border"
     private const val KEY_UNIT = "primary_unit"
-    private const val KEY_OVERLAY = "floating_overlay_enabled"
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+    fun startOnBoot(context: Context): Boolean = prefs(context).getBoolean(KEY_START_ON_BOOT, true)
+    fun setStartOnBoot(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_START_ON_BOOT, value).apply()
+    }
     fun interval(context: Context): Int =
         BatteryMath.refreshSeconds(prefs(context).getInt(KEY_INTERVAL, BatteryMath.DEFAULT_REFRESH_SECONDS))
     fun setInterval(context: Context, value: Int) {
@@ -107,11 +109,12 @@ object ChargeWattSettings {
     }
     fun theme(context: Context): String = prefs(context).getString(KEY_THEME, "dark") ?: "dark"
     fun setTheme(context: Context, value: String) {
-        prefs(context).edit().putString(KEY_THEME, if (value == "transparent") value else "dark").apply()
+        val theme = if (value in setOf("transparent", "compact")) value else "dark"
+        prefs(context).edit().putString(KEY_THEME, theme).apply()
     }
-    fun overlayEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_OVERLAY, false)
-    fun setOverlayEnabled(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean(KEY_OVERLAY, enabled).apply()
+    fun showBorder(context: Context): Boolean = prefs(context).getBoolean(KEY_BORDER, true)
+    fun setShowBorder(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_BORDER, value).apply()
     }
     fun removeLegacyEvents(context: Context) {
         val settings = prefs(context)
@@ -126,6 +129,24 @@ object ChargeWattSettings {
     }
 }
 
+object BatteryEventDiagnostics {
+    /** Include the raw Android extras and decoded Qi bit for logcat diagnosis. */
+    fun describe(status: Int, plugged: Int): String {
+        val statusName = when (status) {
+            BatteryManager.BATTERY_STATUS_CHARGING -> "CHARGING"
+            BatteryManager.BATTERY_STATUS_DISCHARGING -> "DISCHARGING"
+            BatteryManager.BATTERY_STATUS_FULL -> "FULL"
+            BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "NOT_CHARGING"
+            BatteryManager.BATTERY_STATUS_UNKNOWN -> "UNKNOWN"
+            else -> "STATUS_$status"
+        }
+        val source = if (plugged >= 0) BatteryMath.source(plugged) else PowerSource.UNKNOWN
+        val wirelessQi = plugged >= 0 &&
+            (plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0)
+        return "EXTRA_STATUS=$status($statusName) EXTRA_PLUGGED=$plugged(source=$source, wirelessQi=$wirelessQi)"
+    }
+}
+
 object BatterySampler {
     // The resumed activity caches ACTION_BATTERY_CHANGED, avoiding 1Hz sticky
     // broadcast reads. Workers use a single sticky query when not in foreground.
@@ -134,6 +155,13 @@ object BatterySampler {
         if (intent?.action == Intent.ACTION_BATTERY_CHANGED) latestIntent = intent
     }
     fun clear() { latestIntent = null }
+    fun describeFreshSnapshot(context: Context): String {
+        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
+            ?: BatteryManager.BATTERY_STATUS_UNKNOWN
+        val plugged = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
+        return BatteryEventDiagnostics.describe(status, plugged)
+    }
     fun read(context: Context, freshSnapshot: Boolean = false): BatteryReading {
         val battery = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         // A forced power-transition refresh must never reuse a potentially stale

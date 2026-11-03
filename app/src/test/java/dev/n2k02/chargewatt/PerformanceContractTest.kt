@@ -11,22 +11,30 @@ class PerformanceContractTest {
         val file = options.firstOrNull { it.isFile } ?: error("Cannot find source $path")
         return file.readText()
     }
-    @Test fun noNotificationOrForegroundOrWakeLockPermission() {
+    @Test fun foregroundServiceDeclaresSpecialUseWithoutRequestingNotificationPermission() {
         val manifest = read("AndroidManifest.xml")
+        assertTrue(manifest.contains("android.permission.FOREGROUND_SERVICE"))
+        assertTrue(manifest.contains("android.permission.FOREGROUND_SERVICE_SPECIAL_USE"))
         assertFalse(manifest.contains("POST_NOTIFICATIONS"))
-        assertFalse(manifest.contains("FOREGROUND_SERVICE"))
         assertFalse(manifest.contains("WAKE_LOCK"))
-        assertTrue(manifest.contains("<service android:name=\".WidgetPollingService\""))
-        assertFalse(manifest.contains("foregroundServiceType"))
-        assertFalse(manifest.contains("FOREGROUND_SERVICE"))
+        assertTrue(manifest.contains("android:foregroundServiceType=\"specialUse\""))
+        assertTrue(manifest.contains("PROPERTY_SPECIAL_USE_FGS_SUBTYPE"))
     }
+    @Test fun powerReceiverLogsRawWirelessQiExtrasAndFreshSnapshots() {
+        val receiver = read("java/dev/n2k02/chargewatt/PowerConnectionReceiver.kt")
+        assertTrue(receiver.contains("BatterySampler.describeFreshSnapshot(appContext)"))
+        assertTrue(receiver.contains("Power refresh attempt="))
+        assertTrue(receiver.contains("BatterySampler.clear()"))
+    }
+
     @Test fun powerEventsOnlyWakeOnConnectionChanges() {
         val manifest = read("AndroidManifest.xml")
         assertTrue(manifest.contains("ACTION_POWER_CONNECTED"))
         assertTrue(manifest.contains("ACTION_POWER_DISCONNECTED"))
-        assertFalse(manifest.contains("BOOT_COMPLETED"))
+        val powerReceiver = manifest.substringAfter("android:name=\".PowerConnectionReceiver\"").substringBefore("</receiver>")
+        assertFalse(powerReceiver.contains("BOOT_COMPLETED"))
     }
-    @Test fun notificationFreeServiceIsBestEffortAndStopsOnQuit() {
+    @Test fun foregroundPollingUsesSavedIntervalAndStopsOnQuit() {
         val service = read("java/dev/n2k02/chargewatt/WidgetPollingService.kt")
         val activity = read("java/dev/n2k02/chargewatt/MainActivity.kt")
         assertTrue(service.contains("class WidgetPollingService : Service()"))
@@ -34,13 +42,19 @@ class PerformanceContractTest {
         assertTrue(service.contains("WidgetRunState.isPaused"))
         assertTrue(service.contains("WidgetUpdater.widgetIds"))
         assertTrue(service.contains("WidgetPollingActivityState.resumed"))
+        assertTrue(service.contains("BatteryEventDiagnostics.describe"))
+        assertTrue(service.contains("sourceTracker.changed(status, plugged)"))
         assertTrue(service.contains("ChargeWattSettings.interval"))
         assertTrue(service.contains("scope.cancel()"))
-        assertFalse(service.contains("startForeground("))
-        assertFalse(service.contains("NotificationManager"))
-        assertTrue(activity.contains("WidgetPollingService.startWhileVisible(this)"))
+        assertTrue(service.contains("startForeground("))
+        assertTrue(service.contains("NotificationManager"))
+        assertTrue(service.contains("ChargeWattSettings.interval(applicationContext) * 1000L"))
+        assertTrue(service.contains("stopForeground(STOP_FOREGROUND_REMOVE)"))
+        assertTrue(activity.contains("WidgetPollingService.startIfNeeded(this)"))
         assertTrue(activity.contains("WidgetPollingService.stop(this)"))
         assertTrue(activity.contains("WidgetPollingActivityState.resumed = false"))
+        val provider = read("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
+        assertTrue(provider.contains("WidgetPollingService.startIfNeeded(context)"))
     }
     @Test fun widgetCodeAvoidsOneHertzDiskWritesAndAlwaysOnJobs() {
         val widget = read("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
