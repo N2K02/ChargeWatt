@@ -5,45 +5,42 @@ import org.junit.Test
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** Regression guards for notification-free floating battery monitoring. */
+/** Regression guards for widget-only foreground battery monitoring. */
 class ChargeOverlayContractTest {
     private fun file(path: String): String {
         val options = listOf(File("src/main/$path"), File("app/src/main/$path"))
         return options.first { it.isFile }.readText()
     }
 
-    @Test fun overlayIsOptionalNotificationFreeAndSharesExistingSample() {
-        val overlay = file("java/dev/n2k02/chargewatt/ChargeOverlay.kt")
+    @Test fun foregroundServiceRunsOnlyForInstalledWidgets() {
         val manifest = file("AndroidManifest.xml")
         val polling = file("java/dev/n2k02/chargewatt/WidgetPollingService.kt")
         val widget = file("java/dev/n2k02/chargewatt/WidgetReceiver.kt")
-        assertTrue(manifest.contains("android.permission.SYSTEM_ALERT_WINDOW"))
-        assertTrue(overlay.contains("TYPE_APPLICATION_OVERLAY"))
-        assertTrue(overlay.contains("Settings.canDrawOverlays"))
-        assertTrue(overlay.contains("WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE"))
-        assertFalse(overlay.contains("startForeground("))
-        assertFalse(overlay.contains("NotificationManager"))
-        assertFalse(overlay.contains("delay("))
-        assertFalse(overlay.contains("BatterySampler.read("))
-        assertTrue(widget.contains("ChargeOverlay.render(value, unit)"))
-        assertTrue(polling.contains("ChargeOverlay.start(this)"))
-        assertTrue(polling.contains("ChargeOverlay.stop()"))
-        assertTrue(polling.contains("scope.cancel()"))
+        val updater = widget.substringAfter("object WidgetUpdater")
+        assertTrue(manifest.contains("android.permission.FOREGROUND_SERVICE"))
+        assertTrue(manifest.contains("FOREGROUND_SERVICE_SPECIAL_USE"))
+        assertTrue(manifest.contains("android:foregroundServiceType=\\"specialUse\\""))
+        assertFalse(manifest.contains("SYSTEM_ALERT_WINDOW"))
         assertFalse(manifest.contains("POST_NOTIFICATIONS"))
-        assertFalse(manifest.contains("FOREGROUND_SERVICE"))
+        assertTrue(polling.contains("return START_STICKY"))
+        assertTrue(polling.contains("WidgetUpdater.widgetIds(app).isEmpty()")) 
+        assertTrue(polling.contains("WidgetUpdater.widgetIds(this).isNotEmpty()"))
+        assertTrue(widget.contains("WidgetPollingService.startIfNeeded(context)"))
+        assertFalse(polling.contains("ChargeOverlay"))
+        assertFalse(updater.contains("ChargeOverlay"))
     }
 
-    @Test fun permissionGrantAndQuitControlOverlayLifetime() {
+    @Test fun floatingMeterAndOverlayPermissionAreRemovedAndQuitStopsService() {
         val ui = file("java/dev/n2k02/chargewatt/MainActivity.kt")
         val settings = file("java/dev/n2k02/chargewatt/BatteryReading.kt")
-        assertTrue(ui.contains("Floating meter"))
-        assertTrue(ui.contains("ACTION_MANAGE_OVERLAY_PERMISSION"))
-        assertTrue(ui.contains("ChargeWattSettings.setOverlayEnabled"))
-        assertTrue(ui.contains("ChargeOverlay.stop()"))
+        val manifest = file("AndroidManifest.xml")
+        assertFalse(ui.contains("Floating meter"))
+        assertFalse(ui.contains("ACTION_MANAGE_OVERLAY_PERMISSION"))
+        assertFalse(ui.contains("ChargeOverlay"))
+        assertFalse(settings.contains("floating_overlay_enabled"))
+        assertFalse(manifest.contains("SYSTEM_ALERT_WINDOW"))
         assertTrue(ui.contains("WidgetPollingService.stop(this)"))
         assertTrue(ui.contains("WidgetRunState.setPaused(this, true)"))
-        assertTrue(settings.contains("floating_overlay_enabled"))
-        assertTrue(settings.contains("getBoolean(KEY_OVERLAY, false)"))
     }
 
     @Test fun usbTransitionsAlwaysSampleFreshBatteryState() {
