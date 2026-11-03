@@ -196,6 +196,7 @@ private fun ChargeWattScreen(
     var interval by remember { mutableIntStateOf(ChargeWattSettings.interval(context)) }
     var theme by remember { mutableStateOf(ChargeWattSettings.theme(context)) }
     var unit by remember { mutableStateOf(ChargeWattSettings.unit(context)) }
+    var startOnBoot by remember { mutableStateOf(ChargeWattSettings.startOnBoot(context)) }
 
     val updaterStatus by ChargeWattUpdater.controller.status.collectAsState()
     val experimentalEnabled by ChargeWattUpdater.experimentalEnabled.collectAsState()
@@ -314,6 +315,10 @@ private fun ChargeWattScreen(
                             Icons.Default.Tune
                         ) { page = "Widget" }
                         SettingsMenuRow(
+                            "Start on boot", if (startOnBoot) "Widget service starts after phone restart" else "Start the widget service manually after restart",
+                            Icons.Default.BatteryChargingFull,
+                        ) { page = "Startup" }
+                        SettingsMenuRow(
                             "Battery details", "Current, voltage, health and cycle count",
                             Icons.Default.Info
                         ) { page = "Details" }
@@ -372,6 +377,17 @@ private fun ChargeWattScreen(
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                    "Startup" -> {
+                        SectionLabel("Startup")
+                        ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                            ListItem(
+                                headlineContent = { Text("Start on boot") },
+                                supportingContent = { Text("Automatically resume widget sampling after your phone restarts. A ChargeWatt widget must be installed.") },
+                                leadingContent = { Icon(Icons.Default.BatteryChargingFull, contentDescription = null) },
+                                trailingContent = { Switch(checked = startOnBoot, onCheckedChange = { startOnBoot = it; ChargeWattSettings.setStartOnBoot(context, it) }) },
+                            )
                         }
                     }
                     "Details" -> {
