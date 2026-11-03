@@ -6,7 +6,7 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /** Regression guards for widget-only foreground battery monitoring. */
-class ChargeOverlayContractTest {
+class ChargeWattWidgetForegroundServiceContractTest {
     private fun file(path: String): String {
         val options = listOf(File("src/main/$path"), File("app/src/main/$path"))
         return options.first { it.isFile }.readText()
@@ -24,9 +24,13 @@ class ChargeOverlayContractTest {
         assertFalse(manifest.contains("SYSTEM_ALERT_WINDOW"))
         assertFalse(manifest.contains("POST_NOTIFICATIONS"))
         assertTrue(polling.contains("return START_STICKY"))
+        assertTrue(polling.contains("stopForeground(STOP_FOREGROUND_REMOVE)"))
+        assertTrue(polling.contains("hasActiveWidget()"))
         assertTrue(polling.contains("WidgetUpdater.widgetIds(app).isEmpty()")) 
         assertTrue(polling.contains("WidgetUpdater.widgetIds(this).isNotEmpty()"))
         assertTrue(widget.contains("WidgetPollingService.startIfNeeded(context)"))
+        assertTrue(widget.contains("WidgetPollingService.stop(context)"))
+        assertTrue(widget.contains("if (WidgetUpdater.widgetIds(context).isEmpty())"))
         assertFalse(polling.contains("ChargeOverlay"))
         assertFalse(updater.contains("ChargeOverlay"))
     }
