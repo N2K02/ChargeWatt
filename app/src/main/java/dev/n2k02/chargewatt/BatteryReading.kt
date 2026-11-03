@@ -134,7 +134,7 @@ object BatteryEventDiagnostics {
             BatteryManager.BATTERY_STATUS_UNKNOWN -> "UNKNOWN"
             else -> "STATUS_$status"
         }
-        val source = BatteryMath.source(plugged)
+        val source = if (plugged >= 0) BatteryMath.source(plugged) else PowerSource.UNKNOWN
         val wirelessQi = plugged >= 0 &&
             (plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0)
         return "EXTRA_STATUS=$status($statusName) EXTRA_PLUGGED=$plugged(source=$source, wirelessQi=$wirelessQi)"
