@@ -93,9 +93,14 @@ object BatteryMath {
 object ChargeWattSettings {
     private const val FILE = "chargewatt"
     private const val KEY_INTERVAL = "refresh_seconds"
+    private const val KEY_START_ON_BOOT = "start_on_boot"
     private const val KEY_THEME = "widget_theme"
     private const val KEY_UNIT = "primary_unit"
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+    fun startOnBoot(context: Context): Boolean = prefs(context).getBoolean(KEY_START_ON_BOOT, true)
+    fun setStartOnBoot(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_START_ON_BOOT, value).apply()
+    }
     fun interval(context: Context): Int =
         BatteryMath.refreshSeconds(prefs(context).getInt(KEY_INTERVAL, BatteryMath.DEFAULT_REFRESH_SECONDS))
     fun setInterval(context: Context, value: Int) {
