@@ -13,7 +13,6 @@ import android.content.pm.ServiceInfo
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
-import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +24,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Foreground battery sampling for installed widgets and the optional floating meter.
+ * Foreground battery sampling for installed widgets only.
  * The saved 1–10 second interval drives each sample/update cycle; Android still
  * controls scheduling during deep idle and may stop any service.
  */
@@ -81,9 +80,8 @@ class WidgetPollingService : Service() {
         }
     }
 
-    private fun hasActiveMeter(): Boolean =
-        WidgetUpdater.widgetIds(this).isNotEmpty() ||
-            (ChargeWattSettings.overlayEnabled(this) && Settings.canDrawOverlays(this))
+    private fun hasActiveWidget(): Boolean =
+        WidgetUpdater.widgetIds(this).isNotEmpty()
 
     private fun promoteToForeground() {
         val manager = getSystemService(NotificationManager::class.java)
@@ -151,8 +149,7 @@ class WidgetPollingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (WidgetRunState.isPaused(this) || !hasActiveMeter()) {
-            ChargeOverlay.stop()
+        if (WidgetRunState.isPaused(this) || !hasActiveWidget()) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -163,12 +160,11 @@ class WidgetPollingService : Service() {
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        ChargeOverlay.start(this)
         if (polling?.isActive != true) {
             polling = scope.launch {
                 while (isActive) {
                     if (WidgetRunState.isPaused(applicationContext) ||
-                        (WidgetUpdater.widgetIds(applicationContext).isEmpty() && !ChargeOverlay.isRunning)) {
+                        WidgetUpdater.widgetIds(applicationContext).isEmpty()) {
                         stopSelf()
                         break
                     }
@@ -197,7 +193,6 @@ class WidgetPollingService : Service() {
             receiverRegistered = false
         }
         scope.cancel()
-        ChargeOverlay.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         polling = null
         pendingPowerRefresh = null
@@ -212,10 +207,7 @@ class WidgetPollingService : Service() {
         /** Start from a visible Activity or an explicit widget lifecycle event. */
         fun startIfNeeded(context: Context) {
             val app = context.applicationContext
-            val overlayRequested = ChargeWattSettings.overlayEnabled(app) &&
-                Settings.canDrawOverlays(app)
-            if (WidgetRunState.isPaused(app) ||
-                (WidgetUpdater.widgetIds(app).isEmpty() && !overlayRequested)) return
+            if (WidgetRunState.isPaused(app) || WidgetUpdater.widgetIds(app).isEmpty()) return
             try {
                 app.startForegroundService(Intent(app, WidgetPollingService::class.java))
             } catch (error: RuntimeException) {
