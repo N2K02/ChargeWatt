@@ -26,6 +26,7 @@ class ChargeWattWidget : AppWidgetProvider() {
             WidgetRunState.setPaused(context, false)
             WidgetUpdater.invalidateWidgetIds()
             WidgetUpdater.scheduleFallback(context)
+            WidgetPollingService.startIfNeeded(context)
         } catch (error: RuntimeException) {
             Log.e("ChargeWattStartup", "Widget enable failed", error)
         }
@@ -47,6 +48,7 @@ class ChargeWattWidget : AppWidgetProvider() {
             WidgetUpdater.invalidateWidgetIds()
             WidgetUpdater.scheduleFallback(context)
             WidgetUpdater.refresh(context, force = true)
+            WidgetPollingService.startIfNeeded(context)
         } catch (error: RuntimeException) {
             Log.e("ChargeWattStartup", "Widget update failed", error)
         }
