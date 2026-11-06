@@ -61,9 +61,23 @@ class ChargeWattWidget : AppWidgetProvider() {
     }
 }
 
+/** Fallback work is only needed when neither the Activity nor widget service is sampling. */
+internal object WidgetSamplingPolicy {
+    fun shouldSample(paused: Boolean, widgetsInstalled: Boolean,
+                     activityResumed: Boolean, serviceRunning: Boolean): Boolean =
+        !paused && widgetsInstalled && !activityResumed && !serviceRunning
+}
+
 class ChargeWattWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result = try {
-        WidgetUpdater.refresh(applicationContext)
+        val app = applicationContext
+        if (WidgetSamplingPolicy.shouldSample(
+                paused = WidgetRunState.isPaused(app),
+                widgetsInstalled = WidgetUpdater.widgetIds(app).isNotEmpty(),
+                activityResumed = WidgetPollingActivityState.resumed,
+                serviceRunning = WidgetPollingActivityState.serviceRunning)) {
+            WidgetUpdater.refresh(app)
+        }
         Result.success()
     } catch (error: Exception) {
         // A device missing this optional telemetry must not enter a retry storm.
