@@ -160,6 +160,7 @@ class WidgetPollingService : Service() {
             stopSelf(startId)
             return START_NOT_STICKY
         }
+        WidgetPollingActivityState.serviceRunning = true
         if (polling?.isActive != true) {
             polling = scope.launch {
                 while (isActive) {
@@ -184,6 +185,7 @@ class WidgetPollingService : Service() {
     }
 
     override fun onDestroy() {
+        WidgetPollingActivityState.serviceRunning = false
         if (receiverRegistered) {
             try {
                 unregisterReceiver(batteryReceiver)
@@ -241,4 +243,5 @@ internal class WidgetPowerStateTracker {
 /** Avoids running two independent 1-10 second battery sampling loops. */
 internal object WidgetPollingActivityState {
     @Volatile var resumed: Boolean = false
+    @Volatile var serviceRunning: Boolean = false
 }
