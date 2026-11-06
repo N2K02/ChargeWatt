@@ -23,14 +23,14 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: 9.6.0
       - name: Install Android SDK 37
@@ -138,13 +138,13 @@ jobs:
           script: bash scripts/verify_startup_emulator.sh
       - name: Preserve emulator crash log when startup fails
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chargewatt-startup-crash-log
           path: startup-logcat.txt
           if-no-files-found: ignore
       - name: Upload signed APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "${{ env.APK_NAME }}"
           path: "${{ env.APK_NAME }}.apk"
