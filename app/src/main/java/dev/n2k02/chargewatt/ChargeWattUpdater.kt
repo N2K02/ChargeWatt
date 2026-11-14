@@ -3,7 +3,6 @@ package dev.n2k02.chargewatt
 import android.app.Activity
 import android.content.Context
 import android.os.Build
-import dev.n2k02.updater.PublishedUpdateSource
 import dev.n2k02.updater.UpdateConfig
 import dev.n2k02.updater.UpdateInstallGuard
 import dev.n2k02.updater.UpdaterController
@@ -44,7 +43,6 @@ internal object ChargeWattUpdater {
             installedVersionCode = versionCode(),
             experimentalEnabled = experimentalEnabled.value,
         ),
-        publishedSource = PublishedUpdateSource("https://n2k02.github.io/chargewatt/updates"),
         offerPreferences = prefs(),
     )
 
