@@ -5,6 +5,8 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [main]
+  pull_request_target:
+    types: [closed]
   workflow_dispatch:
     inputs:
       version:
@@ -14,17 +16,19 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  group: "${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.pull_request.number) || 'main' }}"
   cancel-in-progress: true
 env:
   APP: ChargeWatt
+  BUILD_COMMIT: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.merge_commit_sha || github.sha }}
 jobs:
   build:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request_target' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository && !contains(github.event.pull_request.title, '[skip ci]')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.merge_commit_sha || github.sha }}
           fetch-depth: 0
       - uses: actions/setup-java@v6
         with:
@@ -47,7 +51,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             version="${last:-1.0}"
             suffix="-experimental.$GITHUB_RUN_NUMBER"
-            apk="$APP-PR-${{ github.event.pull_request.number }}-${GITHUB_SHA:0:7}"
+            apk="$APP-PR-${{ github.event.pull_request.number }}-${BUILD_COMMIT:0:7}"
           else
             if [ -n "$REQUESTED" ]; then version="$REQUESTED"
             elif [ -z "$last" ]; then version="1.0"
@@ -165,7 +169,7 @@ jobs:
           else
             tag="v$VERSION"
             title="$APP $VERSION"
-            target="$GITHUB_SHA"
+            target="$BUILD_COMMIT"
             extra=(--latest)
           fi
           gh release create "$tag" "$APK_NAME.apk" --repo "$GITHUB_REPOSITORY" \
