@@ -19,6 +19,7 @@ concurrency:
   group: "${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.pull_request.number) || 'main' }}"
   cancel-in-progress: true
 env:
+  GH_TOKEN: ${{ github.token }}
   APP: ChargeWatt
   BUILD_COMMIT: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.merge_commit_sha || github.sha }}
 jobs:
@@ -68,7 +69,8 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]$ ]] || { echo "::error::Bad version $version"; exit 1; }
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "SUFFIX=$suffix" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          VERSION_CODE=$(python3 .github/scripts/version_code.py "$GITHUB_REPOSITORY" "$GITHUB_RUN_NUMBER")
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "APK_NAME=$apk" >> "$GITHUB_ENV"
       - name: Generate commit changelog for updater
         env:
