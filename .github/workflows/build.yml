@@ -84,6 +84,7 @@ jobs:
             git log -n 30 --pretty=format:'- %s' "$range" > release-notes.md
           fi
           if [ ! -s release-notes.md ]; then echo '- Maintenance and improvements' > release-notes.md; fi
+          printf '\nVersion code: %s\n' "$VERSION_CODE" >> release-notes.md
           cat release-notes.md
       - name: Test, lint, build
         env:
