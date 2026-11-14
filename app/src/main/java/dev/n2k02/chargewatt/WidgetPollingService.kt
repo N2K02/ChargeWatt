@@ -105,7 +105,7 @@ class WidgetPollingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(dev.n2k02.chargewatt.R.drawable.ic_stat_app)
             .setContentTitle("ChargeWatt is active")
             .setContentText("Updating battery readings at the saved interval")
             .setCategory(Notification.CATEGORY_SERVICE)

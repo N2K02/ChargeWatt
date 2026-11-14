@@ -39,7 +39,7 @@ Github Actions requires existing repository secrets N2K02_PACKAGES_TOKEN and SIG
 
 For local compilation, use Gradle 9.6 with Android SDK and N2K02_PACKAGES_TOKEN, then run: gradle testDebugUnitTest lintDebug assembleDebug. Local debug builds are not signed for in-place updates over release APKs.
 
-The live `dev.n2k02:updater:0.1.19` controller and complete `N2K02UpdateScreen` now match mRadio: stable/experimental channel toggle, update checks, download progress, cryptographic APK verification, and Android system installer. The preferred source is `https://n2k02.github.io/chargewatt/updates/{channel}.json`, published by CI when the optional `ANDROID_DISTRIBUTION_TOKEN` is available; stable GitHub Releases are the fallback.
+The live `dev.n2k02:updater:0.1.34` controller and complete `N2K02UpdateScreen` now match mRadio: stable/experimental channel toggle, update checks, download progress, cryptographic APK verification, and Android system installer. Stable and experimental updates are read directly from this app’s public GitHub releases; no distribution credential or website manifest is required.
 
 ## Startup crash diagnostics
 
@@ -58,7 +58,7 @@ The 1×1 widget has three lightweight appearance styles: Dark, Transparent, and 
 The app wraps the complete screen in `N2K02Theme` (from the pinned 0.1.4 package), using Material 3 Expressive motion/shapes and system dynamic colors, as mRadio does. Battery current sign is preserved and never misrepresented as charger input power. When Android reports Wireless Qi attached, the widget badge displays **Qi**, even when the net battery current remains negative; the signed wattage and the dashboard explicitly state net battery drain. The 1×1 widget uses narrow, condensed, auto-sized text with shorter unit formatting to avoid Pixel 8 Pro clipping.
 
 ## Public update publishing (matches mRadio)
-CI publishes the same release-signed APK to the public `N2K02/n2k02.github.io` GitHub Releases repository and writes `chargewatt/updates/stable.json` or `chargewatt/updates/experimental.json`, including the exact APK SHA-256 and monotonic versionCode. This requires the **ANDROID_DISTRIBUTION_TOKEN** GitHub Actions secret with public distribution repository write permission. If that secret is missing, the workflow warns and keeps the signed APK as a chargeWatt release artifact, but full experimental in-app updates remain unavailable until the token is configured. The APK does not contain a GitHub credential.
+CI publishes signed APKs to this app’s public GitHub releases. Stable releases and experimental prereleases include their Android version code; the updater downloads the release asset directly without an embedded credential.
 
 ## Home, Battery details, and compact widget redesign
 Both pages share a single statically drawn glass battery hero, a progress ring, and green/amber state colors. Home displays four compact status cards and one clear details action. Details shows grouped electrical metrics and a four-row battery information card. Both keep the canonical mRadio header and bottom navigation, use the shared Material 3 Expressive theme, and add no notifications, services, animations, or in-app logs. Launcher icon and widget use matching green #5BF19C, amber #FFB443, cyan #9BD6DE and purple #C7A9FC. To avoid clipping in 1×1 cells, current >=1000mA uses A (−1331mA→−1.33A) for both primary and secondary widget readings.

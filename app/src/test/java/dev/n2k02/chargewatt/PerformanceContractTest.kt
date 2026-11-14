@@ -120,7 +120,7 @@ class PerformanceContractTest {
         assertFalse(activity.contains("Open GitHub releases"))
         val updater = read("java/dev/n2k02/chargewatt/ChargeWattUpdater.kt")
         assertTrue(updater.contains("UpdaterController("))
-        assertTrue(updater.contains("PublishedUpdateSource("))
+        assertTrue(!updater.contains("PublishedUpdateSource("))
         assertTrue(updater.contains("N2K02/ChargeWatt"))
         assertTrue(updater.contains("onHostResume(activity, installGuard)"))
     }
