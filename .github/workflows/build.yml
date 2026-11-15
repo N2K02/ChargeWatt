@@ -72,6 +72,16 @@ jobs:
           VERSION_CODE=$(python3 .github/scripts/version_code.py "$GITHUB_REPOSITORY" "$GITHUB_RUN_NUMBER")
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "APK_NAME=$apk" >> "$GITHUB_ENV"
+
+      - name: Resolve standardized experimental release name
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/experimental_naming.py --self-test
+          python3 .github/scripts/experimental_naming.py "$GITHUB_REPOSITORY" "$APP" "$GITHUB_RUN_NUMBER" "$PR_NUMBER"
       - name: Generate commit changelog for updater
         env:
           PR_BASE_SHA: "${{ github.event.pull_request.base.sha }}"
@@ -165,7 +175,7 @@ jobs:
           set -euo pipefail
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             tag="experimental-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
-            title="$APP experimental PR #$PR_NUMBER"
+            title="$EXPERIMENTAL_TITLE"
             target="$PR_SHA"
             extra=(--prerelease --latest=false)
           else
