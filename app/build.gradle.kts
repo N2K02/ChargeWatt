@@ -48,8 +48,8 @@ tasks.register("verifySharedLibraries") {
     doLast {
         val modules = configurations.getByName("implementation").dependencies
             .filter { it.group == "dev.n2k02" }.associate { it.name to it.version }
-        check(modules["theme"] == "0.1.14" && modules["updater"] == "0.1.36") {
-            "Use pinned theme 0.1.14 and updater 0.1.36"
+        check(modules["theme"] == "0.1.15" && modules["updater"] == "0.1.39") {
+            "Use pinned theme 0.1.15 and updater 0.1.39"
         }
     }
 }
