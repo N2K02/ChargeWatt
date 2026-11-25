@@ -9,7 +9,7 @@ val appVersionCode = (findProperty("appVersionCode") as String?)?.toIntOrNull()
 val appVersionSuffix = (findProperty("appVersionSuffix") as String?) ?: ""
 android {
     namespace = "dev.n2k02.chargewatt"
-    compileSdk { version = release(37) { minorApiLevel = 0 } }
+    compileSdk { version = release(37) { minorApiLevel = 2 } }
     defaultConfig {
         applicationId = "dev.n2k02.chargewatt"
         minSdk = 26
@@ -34,8 +34,8 @@ android {
 }
 dependencies {
     implementation("dev.n2k02:theme:0.1.15")
-    implementation("dev.n2k02:updater:0.1.36")
-    implementation("androidx.compose.material3:material3:1.5.0-rc01")
+    implementation("dev.n2k02:updater:0.1.39")
+    implementation("androidx.compose.material3:material3:1.6.0-alpha01")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.0")
@@ -48,8 +48,8 @@ tasks.register("verifySharedLibraries") {
     doLast {
         val modules = configurations.getByName("implementation").dependencies
             .filter { it.group == "dev.n2k02" }.associate { it.name to it.version }
-        check(modules["theme"] == "0.1.14" && modules["updater"] == "0.1.36") {
-            "Use pinned theme 0.1.14 and updater 0.1.36"
+        check(modules["theme"] == "0.1.15" && modules["updater"] == "0.1.39") {
+            "Use pinned theme 0.1.15 and updater 0.1.39"
         }
     }
 }
