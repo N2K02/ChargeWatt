@@ -158,6 +158,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: chargewatt-startup-crash-log
+          retention-days: 7
           path: startup-logcat.txt
           if-no-files-found: ignore
       - name: Upload signed APK
